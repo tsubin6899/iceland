@@ -13,20 +13,24 @@ $('#stats').innerHTML = [
 const routeCities = [...new Set(trip.days.map(day => day.city).filter(Boolean))];
 $('#route').innerHTML = routeCities.map(city => `<span>${city}</span>`).join('');
 
+$('#dayFilters').innerHTML = ['全部', ...trip.days.map(day => day.day)].map((value, index) => {
+  const day = trip.days.find(item => item.day === value);
+  const label = value === '全部' ? '全部日期' : `${day.date}`;
+  const sub = value === '全部' ? 'All Days' : day.day;
+  return `<button class="${index === 0 ? 'active' : ''}" data-filter="${value}"><strong>${label}</strong><small>${sub}</small></button>`;
+}).join('');
+
 function renderTimeline(filter='全部') {
   $('#timelineList').innerHTML = trip.days.map(day => {
-    const items = day.items.filter(item => {
-      if (filter === '全部') return true;
-      if (filter === '採買') return /超市|採買/.test(item.行程 || item.說明 || '');
-      return item.性質 === filter;
-    });
+    if (filter !== '全部' && day.day !== filter) return '';
+    const items = day.items;
     if (!items.length) return '';
     return `<article class="day"><div class="day__label"><strong>${day.day}</strong><span>${day.date}</span><small>${day.city || ''}</small></div><div class="day__items">${items.map(item => `<section class="event"><img class="event__image" src="${item.imageUrl || fallbackImage}" alt="${item.行程 || '行程照片'}" loading="lazy"${fallbackAttr}><time>${item.displayTime || ''}</time><span class="pill ${typeClass(item.性質,item.行程)}">${item.性質 || ''}</span><div><h3>${item.行程 || ''}</h3><p>${item.說明 || ''}</p>${item.冬季狀況 ? `<p><strong>冬季：</strong>${item.冬季狀況}</p>` : ''}</div>${item['Google Map位置'] ? `<a class="map" href="${item['Google Map位置']}" target="_blank" rel="noreferrer">Map</a>` : ''}</section>`).join('')}</div></article>`;
   }).join('');
 }
 renderTimeline();
-document.querySelectorAll('.filters button').forEach(button => button.addEventListener('click', () => {
-  document.querySelectorAll('.filters button').forEach(item => item.classList.remove('active'));
+document.querySelectorAll('#dayFilters button').forEach(button => button.addEventListener('click', () => {
+  document.querySelectorAll('#dayFilters button').forEach(item => item.classList.remove('active'));
   button.classList.add('active');
   renderTimeline(button.dataset.filter);
 }));
