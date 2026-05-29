@@ -1,0 +1,105 @@
+const {trip, fallbackImage} = window.ICELAND_DATA;
+const $ = (selector) => document.querySelector(selector);
+const escapeHtml = (value='') => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+const typeClass = (type, title='') => type === '交通' ? 'transport' : /餐|超市|採買/.test(`${type}${title}`) ? 'food' : '';
+const fallbackAttr = fallbackImage ? ` onerror="this.onerror=null;this.src='${fallbackImage}'"` : '';
+$('#stats').innerHTML = [
+  ['天數', `${trip.summary.dayCount} 天`],
+  ['航班', `${trip.summary.flightCount} 段`],
+  ['住宿', `${trip.summary.hotelCount} 筆`],
+  ['景點', `${trip.summary.attractionCount} 處`]
+].map(([label,value]) => `<article class="stat"><strong>${value}</strong><span>${label}</span></article>`).join('');
+
+const routeCities = [...new Set(trip.days.map(day => day.city).filter(Boolean))];
+$('#route').innerHTML = routeCities.map(city => `<span>${city}</span>`).join('');
+
+function renderTimeline(filter='全部') {
+  $('#timelineList').innerHTML = trip.days.map(day => {
+    const items = day.items.filter(item => {
+      if (filter === '全部') return true;
+      if (filter === '採買') return /超市|採買/.test(item.行程 || item.說明 || '');
+      return item.性質 === filter;
+    });
+    if (!items.length) return '';
+    return `<article class="day"><div class="day__label"><strong>${day.day}</strong><span>${day.date}</span><small>${day.city || ''}</small></div><div class="day__items">${items.map(item => `<section class="event"><img class="event__image" src="${item.imageUrl || fallbackImage}" alt="${item.行程 || '行程照片'}" loading="lazy"${fallbackAttr}><time>${item.displayTime || ''}</time><span class="pill ${typeClass(item.性質,item.行程)}">${item.性質 || ''}</span><div><h3>${item.行程 || ''}</h3><p>${item.說明 || ''}</p>${item.冬季狀況 ? `<p><strong>冬季：</strong>${item.冬季狀況}</p>` : ''}</div>${item['Google Map位置'] ? `<a class="map" href="${item['Google Map位置']}" target="_blank" rel="noreferrer">Map</a>` : ''}</section>`).join('')}</div></article>`;
+  }).join('');
+}
+renderTimeline();
+document.querySelectorAll('.filters button').forEach(button => button.addEventListener('click', () => {
+  document.querySelectorAll('.filters button').forEach(item => item.classList.remove('active'));
+  button.classList.add('active');
+  renderTimeline(button.dataset.filter);
+}));
+
+const tabLinks = document.querySelectorAll('.topbar a[data-tab]');
+const tabPanels = document.querySelectorAll('.tab-panel');
+function showTab(id, updateHash=true) {
+  const target = document.getElementById(id) || document.getElementById('timeline');
+  tabPanels.forEach(panel => panel.classList.toggle('active', panel === target));
+  tabLinks.forEach(link => link.classList.toggle('active', link.dataset.tab === target.id));
+  if (updateHash) history.replaceState(null, '', `#${target.id}`);
+  target.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+tabLinks.forEach(link => link.addEventListener('click', (event) => {
+  event.preventDefault();
+  showTab(link.dataset.tab);
+}));
+if (location.hash) {
+  const requestedTab = location.hash.slice(1);
+  if (document.getElementById(requestedTab)?.classList.contains('tab-panel')) {
+    showTab(requestedTab, false);
+  }
+}
+
+$('#stayGrid').innerHTML = trip.hotels.map(hotel => `<article class="stay"><h3>${hotel.飯店名稱}</h3><p>${hotel.城市}｜${hotel.入住日期顯示} ${hotel.入住時間顯示} - ${hotel.退房日期顯示} ${hotel.退房時間顯示}</p><div class="meta"><span>${hotel.房型 || '房型未填'}</span><span>${hotel.訂房平台 || '平台未填'}</span><span>${hotel.金額顯示}</span><span>停車 ${hotel.停車位顯示}</span><span>早餐 ${hotel.早餐顯示}</span></div><p>${hotel.額外說明 || ''}</p>${hotel['Google Map位置'] ? `<a class="map" href="${hotel['Google Map位置']}" target="_blank" rel="noreferrer">Google Map</a>` : ''}</article>`).join('');
+
+$('#notes').innerHTML = `<h2>行前重點</h2>${trip.notes.map(note => `<article><h3>${note.項目}</h3><p>${note.備註內容 || ''}</p></article>`).join('')}`;
+
+$('#flightList').innerHTML = trip.flights.map(flight => `<article class="flight"><div><span class="pill transport">${flight.航空公司}</span><h3>${flight.班機號碼}</h3></div><div class="airport"><span>${flight.出發機場}</span><b>→</b><span>${flight.抵達機場}</span></div><div><strong>${flight.搭乘日期顯示} ${flight.起飛時間顯示}</strong><br><small>抵達 ${flight.抵達日期顯示} ${flight.降落時間顯示}｜行李 ${flight.行李重量 || ''}</small></div></article>`).join('');
+
+function renderAttractions() {
+  const filter = $('#spotFilter');
+  const grid = $('#spotGrid');
+  const reader = $('#spotReader');
+  if (!filter || !grid || !reader) return;
+  const regions = ['全部', ...trip.attractions.reduce((values, item) => {
+    const region = item.city || '未分類';
+    if (!values.includes(region)) values.push(region);
+    return values;
+  }, [])];
+  let visible = trip.attractions;
+  filter.innerHTML = regions.map((region, index) => `<button class="spot-button${index === 0 ? ' active' : ''}" data-region="${escapeHtml(region)}">${escapeHtml(region)}</button>`).join('');
+
+  function openArticle(item, activeIndex) {
+    if (!item) {
+      reader.innerHTML = '';
+      return;
+    }
+    const image = item.imageUrl || fallbackImage;
+    const mapLink = item.map ? `<a class="map" href="${item.map}" target="_blank" rel="noreferrer">Google Map</a>` : '';
+    const pageLink = item.pageUrl ? `<a class="map" href="${item.pageUrl}">開啟景點分頁</a>` : '';
+    reader.innerHTML = `<figure class="spot-photo"><img loading="lazy" src="${image}" alt="${escapeHtml(item.title)}景點照片"${fallbackAttr}></figure><header class="reading-head"><p class="eyebrow">${escapeHtml(item.city || 'Iceland')}</p><h3>${escapeHtml(item.title)}</h3><span>${escapeHtml(item.day || '')} · ${escapeHtml(item.date || '')}</span></header><div class="markdown">${item.fullHtml || `<p>${escapeHtml(item.description || '')}</p>`}${item.winter ? `<h2>冬季提醒</h2><p>${escapeHtml(item.winter)}</p>` : ''}</div><div class="reader-actions">${pageLink}${mapLink}</div>`;
+    grid.querySelectorAll('.spot-card').forEach((card, index) => card.classList.toggle('active', index === activeIndex));
+  }
+
+  function showAttractions(region) {
+    visible = region === '全部' ? trip.attractions : trip.attractions.filter(item => (item.city || '未分類') === region);
+    grid.innerHTML = visible.map((item, index) => `<button class="spot-card${index === 0 ? ' active' : ''}" data-index="${index}"><img loading="lazy" src="${item.imageUrl || fallbackImage}" alt="${escapeHtml(item.title)}縮圖"${fallbackAttr}><span>${escapeHtml(item.city || 'Iceland')}</span><strong>${escapeHtml(item.title)}</strong><em>閱讀完整介紹</em></button>`).join('');
+    openArticle(visible[0], 0);
+  }
+
+  filter.addEventListener('click', event => {
+    if (!event.target.matches('.spot-button')) return;
+    filter.querySelectorAll('.spot-button').forEach(button => button.classList.toggle('active', button === event.target));
+    showAttractions(event.target.dataset.region);
+  });
+  grid.addEventListener('click', event => {
+    const button = event.target.closest('.spot-card');
+    if (!button) return;
+    openArticle(visible[Number(button.dataset.index)], Number(button.dataset.index));
+  });
+  showAttractions('全部');
+}
+renderAttractions();
+
+$('#winterGrid').innerHTML = trip.winter.map(item => `<article class="winter"><h3>${item.行程}</h3><p>${item.注意事項}</p></article>`).join('');
