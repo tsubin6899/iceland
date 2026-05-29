@@ -57,3 +57,4 @@ body{background:#fff}
 body:before{opacity:0}
 body:after{opacity:0;filter:none;background:none}
 @media (max-width:900px){body{background:#fff}.route-visual img{max-height:280px}.day-filters button{min-width:92px}}
+@media (max-width:760px){.day__items{padding:0}.event{grid-template-columns:auto 1fr!important;gap:10px 12px;padding:16px 14px 18px}.event__image{grid-column:1/-1!important;width:100%!important;aspect-ratio:16/10;margin-bottom:4px}.event time{grid-column:1;font-size:1.12rem;line-height:1.35}.event .pill{grid-column:2;justify-self:start;align-self:center;min-width:58px}.event>div{grid-column:1/-1;min-width:0}.event h3{font-size:1.18rem;line-height:1.45}.event p{font-size:.98rem;line-height:1.75;overflow-wrap:anywhere}.event .map{grid-column:1/-1!important;justify-self:start;margin-top:2px}}
