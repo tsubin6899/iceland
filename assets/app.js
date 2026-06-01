@@ -3,12 +3,48 @@ const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value='') => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
 const typeClass = (type, title='') => type === '交通' ? 'transport' : /餐|超市|採買/.test(`${type}${title}`) ? 'food' : '';
 const fallbackAttr = fallbackImage ? ` onerror="this.onerror=null;this.src='${fallbackImage}'"` : '';
+const formatTwd = value => `NT$${Number(value || 0).toLocaleString('zh-TW', {maximumFractionDigits: 0})}`;
 $('#stats').innerHTML = [
   ['天數', `${trip.summary.dayCount} 天`],
   ['航班', `${trip.summary.flightCount} 段`],
   ['住宿', `${trip.summary.hotelCount} 筆`],
-  ['景點', `${trip.summary.attractionCount} 處`]
+  ['每人經費', trip.summary.personalExpenseTotal]
 ].map(([label,value]) => `<article class="stat"><strong>${value}</strong><span>${label}</span></article>`).join('');
+
+function barChart(items, options={}) {
+  const rows = items.filter(item => Number(item.amount || 0) > 0);
+  const width = 560;
+  const rowHeight = 48;
+  const top = 18;
+  const labelWidth = 96;
+  const amountWidth = 104;
+  const chartWidth = width - labelWidth - amountWidth - 26;
+  const height = Math.max(120, top * 2 + rows.length * rowHeight);
+  const max = Math.max(...rows.map(item => Number(item.amount || 0)), 1);
+  const bars = rows.map((item, index) => {
+    const y = top + index * rowHeight;
+    const barWidth = Math.max(4, Math.round(Number(item.amount || 0) / max * chartWidth));
+    const pct = trip.expenses.total ? `${Math.round(Number(item.amount || 0) / trip.expenses.total * 100)}%` : '';
+    return `<g><text x="0" y="${y + 22}" font-size="13">${escapeHtml(item.category)}</text><line class="expense-grid-line" x1="${labelWidth}" y1="${y + 16}" x2="${labelWidth + chartWidth}" y2="${y + 16}"></line><rect class="expense-bar ${options.personal ? 'personal' : ''}" x="${labelWidth}" y="${y + 5}" width="${barWidth}" height="22"></rect><text class="muted" x="${labelWidth + barWidth + 8}" y="${y + 21}">${formatTwd(item.amount)}${options.percent ? ` · ${pct}` : ''}</text></g>`;
+  }).join('');
+  return `<svg class="expense-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(options.label || '支出圖表')}">${bars}</svg>`;
+}
+
+function renderExpenses() {
+  const expenses = trip.expenses || {};
+  const summary = $('#expenseSummary');
+  if (!summary || !expenses.categories) return;
+  summary.innerHTML = [
+    ['已建檔總支出', expenses.totalDisplay],
+    ['每人估算', expenses.personalTotalDisplay],
+    ['已付款/人', expenses.paidPersonalTotalDisplay]
+  ].map(([label,value]) => `<article class="expense-kpi"><strong>${value}</strong><span>${label}</span></article>`).join('');
+  $('#categoryChart').innerHTML = barChart(expenses.categories, {percent: true, label: '支出分類'});
+  $('#personalChart').innerHTML = barChart(expenses.personalBreakdown, {personal: true, label: '個人經費估算'});
+  $('#expenseTable').innerHTML = `<thead><tr><th>類別</th><th>金額</th><th>來源</th><th>備註</th></tr></thead><tbody>${expenses.categories.map(item => `<tr><td>${escapeHtml(item.category)}</td><td>${formatTwd(item.amount)}</td><td>${escapeHtml(item.source || '')}</td><td>${escapeHtml(item.note || '')}</td></tr>`).join('')}</tbody>`;
+  $('#expenseSource').textContent = `資料來源：${(expenses.sources || []).join('、')}。租車 ISK 暫以 1 ISK = NT$${expenses.iskToTwd} 換算。`;
+}
+renderExpenses();
 
 const routeCities = [...new Set(trip.days.map(day => day.city).filter(Boolean))];
 $('#route').innerHTML = routeCities.map(city => `<span>${city}</span>`).join('');
