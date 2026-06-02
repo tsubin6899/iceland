@@ -95,7 +95,7 @@ $('#stayGrid').innerHTML = trip.hotels.map(hotel => `<article class="stay"><img 
 
 $('#notes').innerHTML = `<h2>行前重點</h2>${trip.notes.map(note => `<article><h3>${note.項目}</h3><p>${note.備註內容 || ''}</p></article>`).join('')}`;
 
-$('#flightList').innerHTML = trip.flights.map(flight => `<article class="flight"><div><span class="pill transport">${flight.航空公司}</span><h3>${flight.班機號碼}</h3></div><div class="airport"><span>${flight.出發機場}</span><b>→</b><span>${flight.抵達機場}</span></div><div><strong>${flight.搭乘日期顯示} ${flight.起飛時間顯示}</strong><br><small>抵達 ${flight.抵達日期顯示} ${flight.降落時間顯示}｜行李 ${flight.行李重量 || ''}</small></div></article>`).join('');
+$('#flightList').innerHTML = trip.flights.map(flight => `<article class="flight"><img class="flight__image" src="${flight.imageUrl || fallbackImage}" alt="${flight.出發機場 || '航班'} 到 ${flight.抵達機場 || '目的地'}" loading="lazy"${fallbackAttr}><div><span class="pill transport">${flight.航空公司}</span><h3>${flight.班機號碼}</h3></div><div class="airport"><span>${flight.出發機場}</span><b>→</b><span>${flight.抵達機場}</span></div><div><strong>${flight.搭乘日期顯示} ${flight.起飛時間顯示}</strong><br><small>抵達 ${flight.抵達日期顯示} ${flight.降落時間顯示}｜行李 ${flight.行李重量 || ''}</small></div></article>`).join('');
 
 function renderAttractions() {
   const filter = $('#spotFilter');
