@@ -4,6 +4,7 @@ const escapeHtml = (value='') => String(value).replace(/[&<>"']/g, char => ({'&'
 const typeClass = (type, title='') => type === '交通' ? 'transport' : /餐|超市|採買/.test(`${type}${title}`) ? 'food' : '';
 const fallbackAttr = fallbackImage ? ` onerror="this.onerror=null;this.src='${fallbackImage}'"` : '';
 const formatTwd = value => `NT$${Number(value || 0).toLocaleString('zh-TW', {maximumFractionDigits: 0})}`;
+const expensePalette = ['#2d6f89', '#b95039', '#287d72', '#bc8330', '#6f5aa8', '#c05a7b', '#4f7f45', '#5c7180', '#9b6542'];
 $('#stats').innerHTML = [
   ['天數', `${trip.summary.dayCount} 天`],
   ['航班', `${trip.summary.flightCount} 段`],
@@ -25,9 +26,42 @@ function barChart(items, options={}) {
     const y = top + index * rowHeight;
     const barWidth = Math.max(4, Math.round(Number(item.amount || 0) / max * chartWidth));
     const pct = trip.expenses.total ? `${Math.round(Number(item.amount || 0) / trip.expenses.total * 100)}%` : '';
-    return `<g><text x="0" y="${y + 22}" font-size="13">${escapeHtml(item.category)}</text><line class="expense-grid-line" x1="${labelWidth}" y1="${y + 16}" x2="${labelWidth + chartWidth}" y2="${y + 16}"></line><rect class="expense-bar ${options.personal ? 'personal' : ''}" x="${labelWidth}" y="${y + 5}" width="${barWidth}" height="22"></rect><text class="muted" x="${labelWidth + barWidth + 8}" y="${y + 21}">${formatTwd(item.amount)}${options.percent ? ` · ${pct}` : ''}</text></g>`;
+    const color = expensePalette[index % expensePalette.length];
+    return `<g><text x="0" y="${y + 22}" font-size="13">${escapeHtml(item.category)}</text><line class="expense-grid-line" x1="${labelWidth}" y1="${y + 16}" x2="${labelWidth + chartWidth}" y2="${y + 16}"></line><rect class="expense-bar ${options.personal ? 'personal' : ''}" x="${labelWidth}" y="${y + 5}" width="${barWidth}" height="22" fill="${color}"></rect><text class="muted" x="${labelWidth + barWidth + 8}" y="${y + 21}">${formatTwd(item.amount)}${options.percent ? ` · ${pct}` : ''}</text></g>`;
   }).join('');
   return `<svg class="expense-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(options.label || '支出圖表')}">${bars}</svg>`;
+}
+
+function pieSlice(cx, cy, radius, startAngle, endAngle) {
+  const start = {
+    x: cx + radius * Math.cos((startAngle - 90) * Math.PI / 180),
+    y: cy + radius * Math.sin((startAngle - 90) * Math.PI / 180)
+  };
+  const end = {
+    x: cx + radius * Math.cos((endAngle - 90) * Math.PI / 180),
+    y: cy + radius * Math.sin((endAngle - 90) * Math.PI / 180)
+  };
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)} Z`;
+}
+
+function pieChart(items) {
+  const rows = items.filter(item => Number(item.amount || 0) > 0);
+  const total = rows.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  if (!total) return '';
+  let angle = 0;
+  const slices = rows.map((item, index) => {
+    const value = Number(item.amount || 0);
+    const nextAngle = angle + value / total * 360;
+    const path = pieSlice(120, 120, 92, angle, nextAngle);
+    angle = nextAngle;
+    return `<path d="${path}" fill="${expensePalette[index % expensePalette.length]}"></path>`;
+  }).join('');
+  const legend = rows.map((item, index) => {
+    const percent = Math.round(Number(item.amount || 0) / total * 100);
+    return `<li><span style="background:${expensePalette[index % expensePalette.length]}"></span><b>${escapeHtml(item.category)}</b><em>${percent}% · ${formatTwd(item.amount)}</em></li>`;
+  }).join('');
+  return `<div class="expense-pie-wrap"><svg class="expense-chart expense-pie" viewBox="0 0 240 240" role="img" aria-label="支出分類占比">${slices}<circle cx="120" cy="120" r="46" fill="#f8f8f3"></circle><text x="120" y="116" text-anchor="middle" font-size="18">${formatTwd(total)}</text><text class="muted" x="120" y="138" text-anchor="middle">分類合計</text></svg><ul class="expense-legend">${legend}</ul></div>`;
 }
 
 function renderExpenses() {
@@ -41,7 +75,7 @@ function renderExpenses() {
     ['已預訂未付款/人', expenses.bookedUnpaidPersonalTotalDisplay],
     ['未預訂未付款/人', expenses.plannedUnpaidPersonalTotalDisplay]
   ].map(([label,value]) => `<article class="expense-kpi"><strong>${value}</strong><span>${label}</span></article>`).join('');
-  $('#categoryChart').innerHTML = barChart(expenses.categories, {percent: true, label: '支出分類'});
+  $('#categoryChart').innerHTML = pieChart(expenses.categoryBreakdown || expenses.categories);
   $('#personalChart').innerHTML = barChart(expenses.personalBreakdown, {personal: true, label: '個人經費估算'});
   const statusGrid = $('#paymentStatusGrid');
   if (statusGrid) {
