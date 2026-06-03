@@ -35,11 +35,11 @@ function renderExpenses() {
   const summary = $('#expenseSummary');
   if (!summary || !expenses.categories) return;
   summary.innerHTML = [
-    ['已建檔總支出', expenses.totalDisplay],
-    ['每人估算', expenses.personalTotalDisplay],
+    ['個人已建檔支出', expenses.totalDisplay],
+    ['個人結算合計', expenses.personalTotalDisplay],
     ['已付款/人', expenses.paidPersonalTotalDisplay],
-    ['已訂未付款/人', expenses.bookedUnpaidPersonalTotalDisplay],
-    ['預定未訂未付款/人', expenses.plannedUnpaidPersonalTotalDisplay]
+    ['已預訂未付款/人', expenses.bookedUnpaidPersonalTotalDisplay],
+    ['未預訂未付款/人', expenses.plannedUnpaidPersonalTotalDisplay]
   ].map(([label,value]) => `<article class="expense-kpi"><strong>${value}</strong><span>${label}</span></article>`).join('');
   $('#categoryChart').innerHTML = barChart(expenses.categories, {percent: true, label: '支出分類'});
   $('#personalChart').innerHTML = barChart(expenses.personalBreakdown, {personal: true, label: '個人經費估算'});
@@ -48,7 +48,7 @@ function renderExpenses() {
     statusGrid.innerHTML = (expenses.paymentGroups || []).map(group => `<article class="payment-card"><div class="payment-card__head"><span>${escapeHtml(group.label)}</span><strong>${escapeHtml(group.amountDisplay || formatTwd(group.amount))}</strong><small>每人 ${escapeHtml(group.personalAmountDisplay || formatTwd(group.personalAmount))}</small></div><ul>${(group.items || []).map(item => `<li><b>${escapeHtml(item.category)}</b><span>${escapeHtml(item.amountDisplay || formatTwd(item.amount))}</span><em>${escapeHtml(item.note || item.source || '')}</em></li>`).join('')}</ul></article>`).join('');
   }
   $('#expenseTable').innerHTML = `<thead><tr><th>類別</th><th>狀態</th><th>金額</th><th>來源</th><th>備註</th></tr></thead><tbody>${expenses.categories.map(item => `<tr><td>${escapeHtml(item.category)}</td><td><span class="status-chip">${escapeHtml(item.status || '')}</span></td><td>${formatTwd(item.amount)}</td><td>${escapeHtml(item.source || '')}</td><td>${escapeHtml(item.note || '')}</td></tr>`).join('')}</tbody>`;
-  $('#expenseSource').textContent = `資料來源：${(expenses.sources || []).join('、')}。租車 ISK 暫以 1 ISK = NT$${expenses.iskToTwd} 換算。`;
+  $('#expenseSource').textContent = `資料來源：${(expenses.sources || []).join('、')}。金額以 Notion 個人旅行支出結算欄位為準。`;
 }
 renderExpenses();
 
