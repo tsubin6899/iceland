@@ -86,6 +86,131 @@ function renderExpenses() {
 }
 renderExpenses();
 
+const splitStorageKey = 'iceland-trip-split-v1';
+const defaultSplitPeople = ['薛祖斌', '陳嘉明', '陳建宇', '旅伴4', '旅伴5', '旅伴6'];
+let splitState = loadSplitState();
+
+function loadSplitState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(splitStorageKey) || 'null');
+    if (saved && Array.isArray(saved.people) && Array.isArray(saved.expenses)) return saved;
+  } catch (error) {}
+  return {people: defaultSplitPeople, expenses: []};
+}
+
+function saveSplitState() {
+  localStorage.setItem(splitStorageKey, JSON.stringify(splitState));
+}
+
+function splitBalances() {
+  const balances = Object.fromEntries(splitState.people.map(name => [name, 0]));
+  splitState.expenses.forEach(expense => {
+    const amount = Number(expense.amount || 0);
+    const members = (expense.members || []).filter(name => balances[name] !== undefined);
+    if (!amount || !members.length || balances[expense.payer] === undefined) return;
+    balances[expense.payer] += amount;
+    const share = amount / members.length;
+    members.forEach(name => balances[name] -= share);
+  });
+  return balances;
+}
+
+function splitTransfers(balances) {
+  const debtors = Object.entries(balances).filter(([, value]) => value < -0.5).map(([name, value]) => ({name, amount: -value}));
+  const creditors = Object.entries(balances).filter(([, value]) => value > 0.5).map(([name, value]) => ({name, amount: value}));
+  const transfers = [];
+  let debtorIndex = 0;
+  let creditorIndex = 0;
+  while (debtors[debtorIndex] && creditors[creditorIndex]) {
+    const amount = Math.min(debtors[debtorIndex].amount, creditors[creditorIndex].amount);
+    transfers.push({from: debtors[debtorIndex].name, to: creditors[creditorIndex].name, amount});
+    debtors[debtorIndex].amount -= amount;
+    creditors[creditorIndex].amount -= amount;
+    if (debtors[debtorIndex].amount < 0.5) debtorIndex += 1;
+    if (creditors[creditorIndex].amount < 0.5) creditorIndex += 1;
+  }
+  return transfers;
+}
+
+function renderSplitApp() {
+  const form = $('#splitForm');
+  if (!form) return;
+  $('#splitPayer').innerHTML = splitState.people.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+  $('#splitParticipants').innerHTML = splitState.people.map(name => `<label><input type="checkbox" value="${escapeHtml(name)}" checked>${escapeHtml(name)}</label>`).join('');
+  $('#splitPersonList').innerHTML = splitState.people.map(name => `<div class="split-person"><span>${escapeHtml(name)}</span><button type="button" data-remove-person="${escapeHtml(name)}">移除</button></div>`).join('');
+
+  const balances = splitBalances();
+  $('#splitSummary').innerHTML = Object.entries(balances).map(([name, value]) => {
+    const label = Math.abs(value) < 0.5 ? '已結清' : value > 0 ? '應收' : '應付';
+    return `<div class="split-row"><strong>${escapeHtml(name)}</strong><span>${label} ${formatTwd(Math.abs(value))}</span></div>`;
+  }).join('') || '<p class="split-empty">尚未建立旅伴名單。</p>';
+
+  const transfers = splitTransfers(balances);
+  $('#splitSettlements').innerHTML = transfers.length
+    ? transfers.map(item => `<div class="split-row"><strong>${escapeHtml(item.from)} → ${escapeHtml(item.to)}</strong><span>${formatTwd(item.amount)}</span><small>建議轉帳金額</small></div>`).join('')
+    : '<p class="split-empty">目前不需要轉帳。</p>';
+
+  $('#splitExpenseList').innerHTML = splitState.expenses.length
+    ? splitState.expenses.map(expense => `<article class="split-expense"><strong>${escapeHtml(expense.description)}</strong><span>${formatTwd(expense.amount)}</span><small>${escapeHtml(expense.category)}｜${escapeHtml(expense.payer)} 先付｜分攤：${escapeHtml((expense.members || []).join('、'))}${expense.note ? `｜${escapeHtml(expense.note)}` : ''}</small><button type="button" data-remove-expense="${expense.id}">刪除</button></article>`).join('')
+    : '<p class="split-empty">還沒有分帳紀錄。新增第一筆支出後，這裡會自動計算每個人的應收應付。</p>';
+}
+
+document.addEventListener('submit', event => {
+  if (event.target !== $('#splitForm')) return;
+  event.preventDefault();
+  const members = [...document.querySelectorAll('#splitParticipants input:checked')].map(input => input.value);
+  const amount = Number($('#splitAmount').value || 0);
+  if (!members.length || amount <= 0) return;
+  splitState.expenses.unshift({
+    id: `${Date.now()}`,
+    description: $('#splitDesc').value.trim(),
+    amount,
+    category: $('#splitCategory').value,
+    payer: $('#splitPayer').value,
+    members,
+    note: $('#splitNote').value.trim()
+  });
+  saveSplitState();
+  event.target.reset();
+  renderSplitApp();
+});
+
+document.addEventListener('click', event => {
+  const removeExpense = event.target.closest('[data-remove-expense]');
+  if (removeExpense) {
+    splitState.expenses = splitState.expenses.filter(expense => expense.id !== removeExpense.dataset.removeExpense);
+    saveSplitState();
+    renderSplitApp();
+    return;
+  }
+  const removePerson = event.target.closest('[data-remove-person]');
+  if (removePerson) {
+    const name = removePerson.dataset.removePerson;
+    splitState.people = splitState.people.filter(person => person !== name);
+    splitState.expenses = splitState.expenses.filter(expense => expense.payer !== name).map(expense => ({...expense, members: expense.members.filter(person => person !== name)}));
+    saveSplitState();
+    renderSplitApp();
+    return;
+  }
+  if (event.target === $('#splitAddPerson')) {
+    const input = $('#splitPersonName');
+    const name = input.value.trim();
+    if (name && !splitState.people.includes(name)) {
+      splitState.people.push(name);
+      input.value = '';
+      saveSplitState();
+      renderSplitApp();
+    }
+    return;
+  }
+  if (event.target === $('#splitClear')) {
+    splitState.expenses = [];
+    saveSplitState();
+    renderSplitApp();
+  }
+});
+renderSplitApp();
+
 const routeCities = [...new Set(trip.days.map(day => day.city).filter(Boolean))];
 $('#route').innerHTML = routeCities.map(city => `<span>${city}</span>`).join('');
 
@@ -183,3 +308,8 @@ function renderAttractions() {
 renderAttractions();
 
 $('#winterGrid').innerHTML = trip.winter.map(item => `<article class="winter"><h3>${item.行程}</h3><p>${item.注意事項}</p></article>`).join('');
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}

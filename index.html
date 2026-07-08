@@ -3,7 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>冰島14日遊 | 2027旅程整理</title>
+  <title>冰島之旅</title>
+  <meta name="theme-color" content="#02529c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="冰島之旅">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/iceland-flag.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icons/iceland-flag-192.png">
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
@@ -17,6 +23,7 @@
       <a href="#stays" data-tab="stays">住宿</a>
       <a href="#flights" data-tab="flights">航班</a>
       <a href="#expenses" data-tab="expenses">經費</a>
+      <a href="#split" data-tab="split">分帳</a>
       <a href="#attractions" data-tab="attractions">景點介紹</a>
       <a href="#winter" data-tab="winter">冬季提醒</a>
     </nav>
@@ -30,7 +37,7 @@
     <section class="hero" aria-label="旅程封面">
       <div class="hero__content">
         <p class="eyebrow">Winter Ring Notes</p>
-        <h1>冰島14日遊</h1>
+        <h1>冰島之旅</h1>
         <p class="lead">以南岸冰川、黑沙灘、黃金圈與斯奈山半島為主軸，整理每日行程、住宿、航班與景點文字說明。</p>
         <div class="route-line" aria-label="主要路線">
           <span>KEF</span><i></i><span>Reykjavík</span><i></i><span>South Coast</span><i></i><span>Snæfellsnes</span>
@@ -118,6 +125,56 @@
         <table class="expense-table" id="expenseTable"></table>
       </div>
       <p class="source" id="expenseSource"></p>
+    </section>
+
+    <section class="band tab-panel" id="split">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Split Bill</span>
+          <h2>旅伴分帳</h2>
+        </div>
+        <p>手機上可直接新增共用支出、選擇付款人與分攤人，資料會保存在本機瀏覽器。</p>
+      </div>
+      <div class="split-app">
+        <form class="split-form" id="splitForm">
+          <label>項目<input id="splitDesc" name="description" type="text" placeholder="例如：超市採買、停車費" required></label>
+          <label>金額<input id="splitAmount" name="amount" type="number" min="0" step="1" inputmode="decimal" placeholder="0" required></label>
+          <label>分類<select id="splitCategory" name="category">
+            <option>餐飲採買</option>
+            <option>交通停車</option>
+            <option>門票體驗</option>
+            <option>住宿補款</option>
+            <option>其他</option>
+          </select></label>
+          <label>付款人<select id="splitPayer" name="payer"></select></label>
+          <label class="split-wide">分攤人<span class="split-checks" id="splitParticipants"></span></label>
+          <label class="split-wide">備註<input id="splitNote" name="note" type="text" placeholder="可留空"></label>
+          <button class="split-submit" type="submit">加入支出</button>
+        </form>
+        <aside class="split-people">
+          <h3>旅伴名單</h3>
+          <div class="split-add-person">
+            <input id="splitPersonName" type="text" placeholder="新增旅伴">
+            <button id="splitAddPerson" type="button">新增</button>
+          </div>
+          <div class="split-person-list" id="splitPersonList"></div>
+        </aside>
+      </div>
+      <div class="split-results">
+        <article class="split-panel">
+          <h3>結算摘要</h3>
+          <div id="splitSummary"></div>
+        </article>
+        <article class="split-panel">
+          <h3>建議轉帳</h3>
+          <div id="splitSettlements"></div>
+        </article>
+      </div>
+      <div class="split-history-head">
+        <h3>支出紀錄</h3>
+        <button id="splitClear" type="button">清除全部</button>
+      </div>
+      <div class="split-expenses" id="splitExpenseList"></div>
     </section>
 
     <section class="band tab-panel" id="winter">

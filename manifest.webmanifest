@@ -1,0 +1,31 @@
+{
+  "name": "冰島之旅",
+  "short_name": "冰島之旅",
+  "description": "冰島旅程行程、經費與分帳工具",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#d8e1e7",
+  "theme_color": "#02529c",
+  "lang": "zh-Hant",
+  "icons": [
+    {
+      "src": "assets/icons/iceland-flag-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icons/iceland-flag-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icons/iceland-flag.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
