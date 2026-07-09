@@ -1,4 +1,4 @@
-const CACHE_NAME = 'iceland-trip-v1';
+const CACHE_NAME = 'iceland-trip-v15';
 const APP_SHELL = [
   './',
   './index.html',
@@ -7,7 +7,11 @@ const APP_SHELL = [
   './assets/icons/iceland-flag-192.png',
   './assets/icons/iceland-flag-512.png',
   './assets/icons/iceland-flag.svg',
-  './manifest.webmanifest'
+  './manifest.webmanifest',
+  './expense-app/index.html',
+  './expense-app/styles.css',
+  './expense-app/app.js',
+  './expense-app/firebase-config.js'
 ];
 
 self.addEventListener('install', event => {

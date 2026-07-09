@@ -1,16 +1,30 @@
 const {trip, fallbackImage} = window.ICELAND_DATA;
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value='') => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+const emphasizeNote = (value='') => {
+  const escaped = escapeHtml(value);
+  return escaped.replace(/(務必|必備|注意|確認|建議|避免|不要|提前|封路|結冰|取消|危險|保險|護照|駕照|防水|保暖|現金|充電|藥品|備用)/g, '<strong class="note-em">$1</strong>');
+};
 const typeClass = (type, title='') => type === '交通' ? 'transport' : /餐|超市|採買/.test(`${type}${title}`) ? 'food' : '';
 const fallbackAttr = fallbackImage ? ` onerror="this.onerror=null;this.src='${fallbackImage}'"` : '';
-const formatTwd = value => `NT$${Number(value || 0).toLocaleString('zh-TW', {maximumFractionDigits: 0})}`;
+const formatTwd = value => `$${Number(value || 0).toLocaleString('zh-TW', {maximumFractionDigits: 0})}`;
+const formatStatMoney = value => `$${Number(value || 0).toLocaleString('zh-TW', {maximumFractionDigits: 0})}`;
 const expensePalette = ['#2d6f89', '#b95039', '#287d72', '#bc8330', '#6f5aa8', '#c05a7b', '#4f7f45', '#5c7180', '#9b6542'];
+const participantCount = Number(trip.expenses.participantCount || 1);
+const knownTotal = Number(trip.expenses.personalTotal || 0) * participantCount;
+const paidTotal = Number(trip.expenses.paidPersonalTotal || 0) * participantCount;
+const pendingPersonal = Number(trip.expenses.bookedUnpaidPersonalTotal || 0) + Number(trip.expenses.plannedUnpaidPersonalTotal || 0);
+const pendingTotal = pendingPersonal * participantCount;
+const dailyPersonal = trip.summary.dayCount ? Number(trip.expenses.personalTotal || 0) / Number(trip.summary.dayCount || 1) : 0;
+const paidPercent = knownTotal ? `${(paidTotal / knownTotal * 100).toFixed(1)}% 已完成付款` : '尚未付款';
 $('#stats').innerHTML = [
-  ['天數', `${trip.summary.dayCount} 天`],
-  ['航班', `${trip.summary.flightCount} 段`],
-  ['住宿', `${trip.summary.hotelCount} 筆`],
-  ['每人經費', trip.summary.personalExpenseTotal]
-].map(([label,value]) => `<article class="stat"><strong>${value}</strong><span>${label}</span></article>`).join('');
+  {label:'目前已知總支出', value:formatStatMoney(knownTotal), note:'含交通、住宿、門票及寄放'},
+  {label:'已付款', value:formatStatMoney(paidTotal), note:paidPercent, tone:'paid'},
+  {label:'待付款', value:formatStatMoney(pendingTotal), note:`每人約 ${formatStatMoney(pendingPersonal)}`, tone:'due'},
+  {label:'每人目前費用', value:formatStatMoney(trip.expenses.personalTotal), note:`平均每日約 ${formatStatMoney(dailyPersonal)}`},
+  {label:'已購門票', value:'0 項', note:'共 2 張入場票'},
+  {label:'內容手冊', value:`${trip.summary.attractionCount} 景點`, note:''}
+].map(item => `<article class="stat${item.tone ? ` stat--${item.tone}` : ''}"><span>${item.label}</span><strong>${item.value}</strong>${item.note ? `<small>${item.note}</small>` : ''}</article>`).join('');
 
 function barChart(items, options={}) {
   const rows = items.filter(item => Number(item.amount || 0) > 0);
@@ -86,133 +100,9 @@ function renderExpenses() {
 }
 renderExpenses();
 
-const splitStorageKey = 'iceland-trip-split-v1';
-const defaultSplitPeople = ['薛祖斌', '陳嘉明', '陳建宇', '旅伴4', '旅伴5', '旅伴6'];
-let splitState = loadSplitState();
-
-function loadSplitState() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(splitStorageKey) || 'null');
-    if (saved && Array.isArray(saved.people) && Array.isArray(saved.expenses)) return saved;
-  } catch (error) {}
-  return {people: defaultSplitPeople, expenses: []};
-}
-
-function saveSplitState() {
-  localStorage.setItem(splitStorageKey, JSON.stringify(splitState));
-}
-
-function splitBalances() {
-  const balances = Object.fromEntries(splitState.people.map(name => [name, 0]));
-  splitState.expenses.forEach(expense => {
-    const amount = Number(expense.amount || 0);
-    const members = (expense.members || []).filter(name => balances[name] !== undefined);
-    if (!amount || !members.length || balances[expense.payer] === undefined) return;
-    balances[expense.payer] += amount;
-    const share = amount / members.length;
-    members.forEach(name => balances[name] -= share);
-  });
-  return balances;
-}
-
-function splitTransfers(balances) {
-  const debtors = Object.entries(balances).filter(([, value]) => value < -0.5).map(([name, value]) => ({name, amount: -value}));
-  const creditors = Object.entries(balances).filter(([, value]) => value > 0.5).map(([name, value]) => ({name, amount: value}));
-  const transfers = [];
-  let debtorIndex = 0;
-  let creditorIndex = 0;
-  while (debtors[debtorIndex] && creditors[creditorIndex]) {
-    const amount = Math.min(debtors[debtorIndex].amount, creditors[creditorIndex].amount);
-    transfers.push({from: debtors[debtorIndex].name, to: creditors[creditorIndex].name, amount});
-    debtors[debtorIndex].amount -= amount;
-    creditors[creditorIndex].amount -= amount;
-    if (debtors[debtorIndex].amount < 0.5) debtorIndex += 1;
-    if (creditors[creditorIndex].amount < 0.5) creditorIndex += 1;
-  }
-  return transfers;
-}
-
-function renderSplitApp() {
-  const form = $('#splitForm');
-  if (!form) return;
-  $('#splitPayer').innerHTML = splitState.people.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
-  $('#splitParticipants').innerHTML = splitState.people.map(name => `<label><input type="checkbox" value="${escapeHtml(name)}" checked>${escapeHtml(name)}</label>`).join('');
-  $('#splitPersonList').innerHTML = splitState.people.map(name => `<div class="split-person"><span>${escapeHtml(name)}</span><button type="button" data-remove-person="${escapeHtml(name)}">移除</button></div>`).join('');
-
-  const balances = splitBalances();
-  $('#splitSummary').innerHTML = Object.entries(balances).map(([name, value]) => {
-    const label = Math.abs(value) < 0.5 ? '已結清' : value > 0 ? '應收' : '應付';
-    return `<div class="split-row"><strong>${escapeHtml(name)}</strong><span>${label} ${formatTwd(Math.abs(value))}</span></div>`;
-  }).join('') || '<p class="split-empty">尚未建立旅伴名單。</p>';
-
-  const transfers = splitTransfers(balances);
-  $('#splitSettlements').innerHTML = transfers.length
-    ? transfers.map(item => `<div class="split-row"><strong>${escapeHtml(item.from)} → ${escapeHtml(item.to)}</strong><span>${formatTwd(item.amount)}</span><small>建議轉帳金額</small></div>`).join('')
-    : '<p class="split-empty">目前不需要轉帳。</p>';
-
-  $('#splitExpenseList').innerHTML = splitState.expenses.length
-    ? splitState.expenses.map(expense => `<article class="split-expense"><strong>${escapeHtml(expense.description)}</strong><span>${formatTwd(expense.amount)}</span><small>${escapeHtml(expense.category)}｜${escapeHtml(expense.payer)} 先付｜分攤：${escapeHtml((expense.members || []).join('、'))}${expense.note ? `｜${escapeHtml(expense.note)}` : ''}</small><button type="button" data-remove-expense="${expense.id}">刪除</button></article>`).join('')
-    : '<p class="split-empty">還沒有分帳紀錄。新增第一筆支出後，這裡會自動計算每個人的應收應付。</p>';
-}
-
-document.addEventListener('submit', event => {
-  if (event.target !== $('#splitForm')) return;
-  event.preventDefault();
-  const members = [...document.querySelectorAll('#splitParticipants input:checked')].map(input => input.value);
-  const amount = Number($('#splitAmount').value || 0);
-  if (!members.length || amount <= 0) return;
-  splitState.expenses.unshift({
-    id: `${Date.now()}`,
-    description: $('#splitDesc').value.trim(),
-    amount,
-    category: $('#splitCategory').value,
-    payer: $('#splitPayer').value,
-    members,
-    note: $('#splitNote').value.trim()
-  });
-  saveSplitState();
-  event.target.reset();
-  renderSplitApp();
-});
-
-document.addEventListener('click', event => {
-  const removeExpense = event.target.closest('[data-remove-expense]');
-  if (removeExpense) {
-    splitState.expenses = splitState.expenses.filter(expense => expense.id !== removeExpense.dataset.removeExpense);
-    saveSplitState();
-    renderSplitApp();
-    return;
-  }
-  const removePerson = event.target.closest('[data-remove-person]');
-  if (removePerson) {
-    const name = removePerson.dataset.removePerson;
-    splitState.people = splitState.people.filter(person => person !== name);
-    splitState.expenses = splitState.expenses.filter(expense => expense.payer !== name).map(expense => ({...expense, members: expense.members.filter(person => person !== name)}));
-    saveSplitState();
-    renderSplitApp();
-    return;
-  }
-  if (event.target === $('#splitAddPerson')) {
-    const input = $('#splitPersonName');
-    const name = input.value.trim();
-    if (name && !splitState.people.includes(name)) {
-      splitState.people.push(name);
-      input.value = '';
-      saveSplitState();
-      renderSplitApp();
-    }
-    return;
-  }
-  if (event.target === $('#splitClear')) {
-    splitState.expenses = [];
-    saveSplitState();
-    renderSplitApp();
-  }
-});
-renderSplitApp();
-
 const routeCities = [...new Set(trip.days.map(day => day.city).filter(Boolean))];
-$('#route').innerHTML = routeCities.map(city => `<span>${city}</span>`).join('');
+const route = $('#route');
+if (route) route.innerHTML = routeCities.map(city => `<span>${city}</span>`).join('');
 
 $('#dayFilters').innerHTML = ['全部', ...trip.days.map(day => day.day)].map((value, index) => {
   const day = trip.days.find(item => item.day === value);
@@ -237,18 +127,26 @@ document.querySelectorAll('#dayFilters button').forEach(button => button.addEven
 }));
 
 const tabLinks = document.querySelectorAll('.topbar a[data-tab]');
+const pageTabs = document.querySelectorAll('.page-tab[data-tab]');
 const tabPanels = document.querySelectorAll('.tab-panel');
 function showTab(id, updateHash=true) {
   const target = document.getElementById(id) || document.getElementById('timeline');
   tabPanels.forEach(panel => panel.classList.toggle('active', panel === target));
   tabLinks.forEach(link => link.classList.toggle('active', link.dataset.tab === target.id));
+  pageTabs.forEach(tab => {
+    const active = tab.dataset.tab === target.id;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
   if (updateHash) history.replaceState(null, '', `#${target.id}`);
-  target.scrollIntoView({behavior: 'smooth', block: 'start'});
+  const pager = document.getElementById('section-pager');
+  (pager || target).scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 tabLinks.forEach(link => link.addEventListener('click', (event) => {
   event.preventDefault();
   showTab(link.dataset.tab);
 }));
+pageTabs.forEach(tab => tab.addEventListener('click', () => showTab(tab.dataset.tab)));
 if (location.hash) {
   const requestedTab = location.hash.slice(1);
   if (document.getElementById(requestedTab)?.classList.contains('tab-panel')) {
@@ -258,7 +156,7 @@ if (location.hash) {
 
 $('#stayGrid').innerHTML = trip.hotels.map(hotel => `<article class="stay"><img class="stay__image" src="${hotel.imageUrl || fallbackImage}" alt="${hotel.飯店名稱 || '住宿照片'}" loading="lazy"${fallbackAttr}><div class="stay__body"><h3>${hotel.飯店名稱}</h3><p>${hotel.城市}｜${hotel.入住日期顯示} ${hotel.入住時間顯示} - ${hotel.退房日期顯示} ${hotel.退房時間顯示}</p><div class="meta"><span>${hotel.房型 || '房型未填'}</span><span>${hotel.訂房平台 || '平台未填'}</span><span>${hotel.金額顯示}</span><span>停車 ${hotel.停車位顯示}</span><span>早餐 ${hotel.早餐顯示}</span></div><p>${hotel.額外說明 || ''}</p>${hotel['Google Map位置'] ? `<a class="map" href="${hotel['Google Map位置']}" target="_blank" rel="noreferrer">Google Map</a>` : ''}</div></article>`).join('');
 
-$('#notes').innerHTML = `<h2>行前重點</h2>${trip.notes.map(note => `<article><h3>${note.項目}</h3><p>${note.備註內容 || ''}</p></article>`).join('')}`;
+$('#notesList').innerHTML = trip.notes.map(note => `<article><h3>${escapeHtml(note.項目 || '行前提醒')}</h3><p>${emphasizeNote(note.備註內容 || '')}</p></article>`).join('');
 
 $('#flightList').innerHTML = trip.flights.map(flight => `<article class="flight"><img class="flight__image" src="${flight.imageUrl || fallbackImage}" alt="${flight.出發機場 || '航班'} 到 ${flight.抵達機場 || '目的地'}" loading="lazy"${fallbackAttr}><div><span class="pill transport">${flight.航空公司}</span><h3>${flight.班機號碼}</h3></div><div class="airport"><span>${flight.出發機場}</span><b>→</b><span>${flight.抵達機場}</span></div><div><strong>${flight.搭乘日期顯示} ${flight.起飛時間顯示}</strong><br><small>抵達 ${flight.抵達日期顯示} ${flight.降落時間顯示}｜行李 ${flight.行李重量 || ''}</small></div></article>`).join('');
 
@@ -283,7 +181,7 @@ function renderAttractions() {
     const image = item.imageUrl || fallbackImage;
     const mapLink = item.map ? `<a class="map" href="${item.map}" target="_blank" rel="noreferrer">Google Map</a>` : '';
     const pageLink = item.pageUrl ? `<a class="map" href="${item.pageUrl}">開啟景點分頁</a>` : '';
-    reader.innerHTML = `<figure class="spot-photo"><img loading="lazy" src="${image}" alt="${escapeHtml(item.title)}景點照片"${fallbackAttr}></figure><header class="reading-head"><p class="eyebrow">${escapeHtml(item.city || 'Iceland')}</p><h3>${escapeHtml(item.title)}</h3><span>${escapeHtml(item.day || '')} · ${escapeHtml(item.date || '')}</span></header><div class="markdown">${item.fullHtml || `<p>${escapeHtml(item.description || '')}</p>`}${item.winter ? `<h2>冬季提醒</h2><p>${escapeHtml(item.winter)}</p>` : ''}</div><div class="reader-actions">${pageLink}${mapLink}</div>`;
+    reader.innerHTML = `<figure class="spot-photo"><img loading="lazy" src="${image}" alt="${escapeHtml(item.title)}景點照片"${fallbackAttr}></figure><header class="reading-head"><p class="eyebrow">${escapeHtml(item.city || 'Iceland')}</p><h3>${escapeHtml(item.title)}</h3><span>${escapeHtml(item.day || '')} · ${escapeHtml(item.date || '')}</span></header><div class="markdown">${item.fullHtml || `<section class="reading-block reading-block--supplement"><h2>補充資訊</h2><p>${escapeHtml(item.description || '')}</p></section>`}</div><div class="reader-actions">${pageLink}${mapLink}</div>`;
     grid.querySelectorAll('.spot-card').forEach((card, index) => card.classList.toggle('active', index === activeIndex));
   }
 
@@ -308,6 +206,22 @@ function renderAttractions() {
 renderAttractions();
 
 $('#winterGrid').innerHTML = trip.winter.map(item => `<article class="winter"><h3>${item.行程}</h3><p>${item.注意事項}</p></article>`).join('');
+const revealObserver = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      revealObserver.unobserve(entry.target);
+    }
+  });
+}, {threshold: 0.12}) : null;
+document.querySelectorAll('.reveal, .hero').forEach(element => {
+  element.classList.add('reveal');
+  if (revealObserver) {
+    revealObserver.observe(element);
+  } else {
+    element.classList.add('visible');
+  }
+});
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
