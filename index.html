@@ -13,20 +13,20 @@
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
-  <header class="topbar" id="top">
-    <a class="wordmark" href="#top" aria-label="回到首頁">
-      <span class="wordmark-en">ICELAND</span>
-      <span class="wordmark-zh">冰島之旅</span>
-    </a>
-    <a class="mobile-expense-link" href="expense-app/index.html">分帳</a>
-    <div class="updated">
-      <span>2027 Journey</span>
-      <strong>02/01 - 02/14</strong>
-    </div>
-  </header>
+  <div class="fixed-head" id="top">
+    <header class="topbar">
+      <a class="wordmark" href="#top" aria-label="回到首頁">
+        <span class="wordmark-en">ICELAND</span>
+        <span class="wordmark-zh">冰島之旅</span>
+      </a>
+      <a class="mobile-expense-link" href="expense-app/index.html">分帳</a>
+      <div class="updated">
+        <span>2027 Journey</span>
+        <strong>02/01 - 02/14</strong>
+      </div>
+    </header>
 
-  <main>
-    <nav class="section-pager reveal" id="section-pager" aria-label="旅遊資料分頁">
+    <nav class="section-pager" id="section-pager" aria-label="旅遊資料分頁">
       <button class="page-tab active" type="button" data-tab="timeline" aria-selected="true">每日行程</button>
       <button class="page-tab" type="button" data-tab="stays" aria-selected="false">住宿</button>
       <button class="page-tab" type="button" data-tab="notes" aria-selected="false">行前重點</button>
@@ -36,7 +36,9 @@
       <button class="page-tab" type="button" data-tab="winter" aria-selected="false">提醒</button>
       <a class="page-tab expense-nav-link" href="expense-app/index.html">分帳</a>
     </nav>
+  </div>
 
+  <main>
     <section class="hero" aria-label="旅程封面">
       <div class="hero__content">
         <p class="eyebrow">Winter Ring Notes</p>
