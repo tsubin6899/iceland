@@ -22,6 +22,7 @@
 
   var defaults = {
     eurRate: 35.2,
+    usdRate: 32.0,
     iskRate: 0.23,
     tripCode: firebaseSettings.tripCode || "ICELAND-2027-AURORA-489",
     people: ["祖斌", "旅伴 2", "旅伴 3", "旅伴 4"],
@@ -56,11 +57,11 @@
   function bindElements() {
     [
       "syncStatus", "tripCodeForm", "tripCode", "totalSpent", "expenseCount", "averageShare",
-      "travelerCount", "settleCount", "eurRate", "iskRate", "expenseForm", "date", "title", "category",
+      "travelerCount", "settleCount", "eurRate", "usdRate", "iskRate", "expenseForm", "date", "title", "category",
       "amount", "currency", "paidBy", "splitWith", "splitModeEqual", "splitModeCustom",
       "splitRemainder", "selectAll", "selectNone", "personForm",
       "personName", "personList", "settlements", "balances", "categories", "ledger",
-      "filterCategory", "exportCsv", "resetData", "closePeriod", "periods",
+      "filterCategory", "exportCsv", "exportBackup", "importBackup", "importBackupFile", "resetData", "closePeriod", "periods",
       "tripGrandTotal", "tripGrandCount", "tripPerPerson", "tripPeopleCount", "tripCategoryChart",
       "peoplePanel"
     ].forEach(function (id) {
@@ -73,6 +74,7 @@
     elements.personForm.addEventListener("submit", addPerson);
     elements.tripCodeForm.addEventListener("submit", changeTripCode);
     elements.eurRate.addEventListener("change", updateRate);
+    elements.usdRate.addEventListener("change", updateRate);
     elements.iskRate.addEventListener("change", updateRate);
     elements.filterCategory.addEventListener("change", renderLedger);
     elements.amount.addEventListener("input", updateSplitModeUi);
@@ -82,6 +84,9 @@
     elements.selectAll.addEventListener("click", function () { setAllSplit(true); });
     elements.selectNone.addEventListener("click", function () { setAllSplit(false); });
     elements.exportCsv.addEventListener("click", exportCsv);
+    elements.exportBackup.addEventListener("click", exportBackup);
+    elements.importBackup.addEventListener("click", function () { elements.importBackupFile.click(); });
+    elements.importBackupFile.addEventListener("change", importBackup);
     elements.resetData.addEventListener("click", resetData);
     elements.closePeriod.addEventListener("click", closeCurrentPeriod);
     if (mobilePeopleQuery.addEventListener) {
@@ -118,6 +123,7 @@
       var parsed = JSON.parse(raw);
       return {
         eurRate: Number(parsed.eurRate) || defaults.eurRate,
+        usdRate: Number(parsed.usdRate) || defaults.usdRate,
         iskRate: Number(parsed.iskRate) || defaults.iskRate,
         tripCode: savedCode || parsed.tripCode || defaults.tripCode,
         people: cleanPeople(parsed.people || defaults.people),
@@ -174,6 +180,7 @@
         var data = doc.data() || {};
         if (Array.isArray(data.people) && data.people.length) state.people = cleanPeople(data.people);
         state.eurRate = Number(data.eurRate) || state.eurRate;
+        state.usdRate = Number(data.usdRate) || state.usdRate;
         state.iskRate = Number(data.iskRate) || state.iskRate;
       }
       saveState();
@@ -246,6 +253,7 @@
 
   function toTwd(amount, currencyCode) {
     if (currencyCode === "EUR") return Number(amount) * state.eurRate;
+    if (currencyCode === "USD") return Number(amount) * state.usdRate;
     if (currencyCode === "ISK") return Number(amount) * state.iskRate;
     return Number(amount);
   }
@@ -362,6 +370,7 @@
 
   function originalMoney(value, currencyCode) {
     if (currencyCode === "EUR") return "EUR " + Number(value || 0).toFixed(2);
+    if (currencyCode === "USD") return "USD " + Number(value || 0).toFixed(2);
     if (currencyCode === "ISK") return "ISK " + Number(value || 0).toLocaleString("zh-TW", { maximumFractionDigits: 0 });
     return currency(value || 0);
   }
@@ -490,6 +499,7 @@
       tripRef().collection("settings").doc("main").set({
         people: window.firebase.firestore.FieldValue.arrayUnion(name),
         eurRate: Number(state.eurRate) || defaults.eurRate,
+        usdRate: Number(state.usdRate) || defaults.usdRate,
         iskRate: Number(state.iskRate) || defaults.iskRate,
         updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
@@ -539,12 +549,14 @@
 
   function updateRate() {
     state.eurRate = Number(elements.eurRate.value) || defaults.eurRate;
+    state.usdRate = Number(elements.usdRate.value) || defaults.usdRate;
     state.iskRate = Number(elements.iskRate.value) || defaults.iskRate;
     state.expenses = state.expenses.map(normalizeExpense);
     saveState();
     if (syncMode === "firebase" && !isRemoteUpdate) {
       tripRef().collection("settings").doc("main").set({
         eurRate: state.eurRate,
+        usdRate: state.usdRate,
         iskRate: state.iskRate,
         updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
@@ -642,6 +654,7 @@
   function render() {
     elements.tripCode.value = state.tripCode;
     elements.eurRate.value = state.eurRate;
+    elements.usdRate.value = state.usdRate;
     elements.iskRate.value = state.iskRate;
     renderPeopleControls();
     renderSummary();
@@ -845,9 +858,132 @@
     var url = URL.createObjectURL(blob);
     var link = document.createElement("a");
     link.href = url;
-    link.download = "south-italy-expenses.csv";
+    link.download = "iceland-expenses.csv";
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  function backupPayload() {
+    return {
+      app: "iceland-expense-app",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      tripCode: state.tripCode,
+      eurRate: Number(state.eurRate) || defaults.eurRate,
+      usdRate: Number(state.usdRate) || defaults.usdRate,
+      iskRate: Number(state.iskRate) || defaults.iskRate,
+      people: cleanPeople(state.people),
+      expenses: state.expenses.map(function (expense) { return clone(expense); }),
+      periods: state.periods.map(function (period) { return clone(period); })
+    };
+  }
+
+  function exportBackup() {
+    var payload = backupPayload();
+    var json = JSON.stringify(payload, null, 2);
+    var blob = new Blob([json], { type: "application/json;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    var date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    link.href = url;
+    link.download = "iceland-expense-backup-" + date + ".json";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function normalizeBackup(payload) {
+    if (!payload || typeof payload !== "object") throw new Error("備份檔格式不正確。");
+    var imported = {
+      eurRate: Number(payload.eurRate) || defaults.eurRate,
+      usdRate: Number(payload.usdRate) || defaults.usdRate,
+      iskRate: Number(payload.iskRate) || defaults.iskRate,
+      tripCode: safeTripCode(payload.tripCode || state.tripCode || defaults.tripCode),
+      people: cleanPeople(payload.people || defaults.people),
+      expenses: Array.isArray(payload.expenses) ? payload.expenses.map(normalizeExpense) : [],
+      periods: Array.isArray(payload.periods) ? payload.periods.map(normalizePeriod) : []
+    };
+    if (!imported.people.length) imported.people = cleanPeople(defaults.people);
+    syncPeopleFromImportedExpenses(imported);
+    return imported;
+  }
+
+  function syncPeopleFromImportedExpenses(imported) {
+    var names = imported.people.slice();
+    imported.expenses.forEach(function (expense) {
+      names.push(expense.paidBy);
+      expense.splitWith.forEach(function (person) { names.push(person); });
+    });
+    imported.people = cleanPeople(names);
+  }
+
+  function importBackup(event) {
+    var file = event.target.files && event.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var imported = normalizeBackup(JSON.parse(String(reader.result || "{}")));
+        var message = "匯入備份會覆蓋目前分帳資料。\n\n備份旅程代碼：" + imported.tripCode +
+          "\n支出：" + imported.expenses.length + " 筆\n結帳：" + imported.periods.length + " 期\n\n確定要匯入嗎？";
+        if (!confirm(message)) return;
+        applyImportedState(imported);
+      } catch (error) {
+        alert(error && error.message ? error.message : "無法讀取備份檔。");
+      } finally {
+        elements.importBackupFile.value = "";
+      }
+    };
+    reader.onerror = function () {
+      alert("無法讀取備份檔。");
+      elements.importBackupFile.value = "";
+    };
+    reader.readAsText(file);
+  }
+
+  function applyImportedState(imported) {
+    state = imported;
+    saveState();
+    if (syncMode === "firebase") {
+      restoreBackupToCloud(imported).then(function () {
+        setSyncStatus("已匯入備份並同步到雲端：" + imported.tripCode);
+        render();
+      }).catch(function (error) {
+        setSyncStatus("匯入本機完成，但雲端同步失敗：" + readableError(error));
+        render();
+      });
+      return;
+    }
+    setSyncStatus("已匯入備份：" + imported.tripCode);
+    render();
+  }
+
+  function restoreBackupToCloud(imported) {
+    var root = tripRef();
+    return Promise.all([
+      root.collection("expenses").get(),
+      root.collection("settlementPeriods").get()
+    ]).then(function (snapshots) {
+      var batch = db.batch();
+      snapshots.forEach(function (snapshot) {
+        snapshot.docs.forEach(function (doc) { batch.delete(doc.ref); });
+      });
+      batch.set(root.collection("settings").doc("main"), {
+        people: imported.people,
+        eurRate: imported.eurRate,
+        usdRate: imported.usdRate,
+        iskRate: imported.iskRate,
+        updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      imported.expenses.forEach(function (expense) {
+        var id = expense.id || "expense-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+        batch.set(root.collection("expenses").doc(id), Object.assign({}, expense, { id: id }));
+      });
+      imported.periods.forEach(function (period) {
+        var id = period.id || "period-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+        batch.set(root.collection("settlementPeriods").doc(id), Object.assign({}, period, { id: id }));
+      });
+      return batch.commit();
+    });
   }
 
   function optionHtml(value) {
