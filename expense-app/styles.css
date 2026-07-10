@@ -163,7 +163,7 @@ button {
 }
 
 .summary-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   margin-bottom: 18px;
 }
 
@@ -186,6 +186,11 @@ button {
   justify-content: space-between;
 }
 
+.rate-metric {
+  min-height: 112px;
+  padding: 16px 18px;
+}
+
 .metric span,
 .metric small,
 .panel-header p,
@@ -206,14 +211,14 @@ label,
 }
 
 .rate-control input {
-  width: 100%;
-  min-height: 44px;
+  width: min(100%, 150px);
+  min-height: 38px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 0 12px;
+  padding: 0 10px;
   background: #fff;
   color: var(--blue);
-  font-size: 1.45rem;
+  font-size: 1.2rem;
   font-weight: 900;
 }
 
