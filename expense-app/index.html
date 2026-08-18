@@ -81,10 +81,13 @@
         <form class="entry-panel" id="expenseForm">
           <header class="panel-header">
             <div>
-              <p>New Expense</p>
-              <h2>新增一筆支出</h2>
+              <p id="expenseFormEyebrow">New Expense</p>
+              <h2 id="expenseFormTitle">新增一筆支出</h2>
             </div>
-            <button class="primary-button" type="submit">加入</button>
+            <div class="form-actions">
+              <button class="secondary-button" id="cancelExpenseEdit" type="button" hidden>取消</button>
+              <button class="primary-button" id="expenseSubmit" type="submit">加入</button>
+            </div>
           </header>
 
           <div class="form-grid">

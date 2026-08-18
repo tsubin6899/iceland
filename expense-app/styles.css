@@ -111,6 +111,28 @@ button {
   color: #ffffff;
 }
 
+.secondary-button {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.form-actions,
+.ledger-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.entry-panel.is-editing {
+  border-color: rgba(22, 115, 106, 0.48);
+  box-shadow: 0 18px 48px rgba(22, 115, 106, 0.14);
+}
+
 .app-shell {
   width: min(1320px, calc(100% - 32px));
   margin: 0 auto;
@@ -453,6 +475,52 @@ button:focus-visible {
   gap: 10px;
 }
 
+.ledger-list {
+  gap: 16px;
+}
+
+.ledger-date-group {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.ledger-date-head {
+  min-height: 56px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--mint);
+}
+
+.ledger-date-head div {
+  display: grid;
+  gap: 2px;
+}
+
+.ledger-date-head span,
+.ledger-date-head strong {
+  font-weight: 900;
+}
+
+.ledger-date-head small {
+  color: var(--muted);
+}
+
+.ledger-date-head strong {
+  color: var(--teal);
+}
+
+.ledger-date-items {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+}
+
 .person-row,
 .balance-row,
 .settlement-row,
@@ -471,6 +539,10 @@ button:focus-visible {
   background: transparent;
   color: var(--rose);
   font-weight: 900;
+}
+
+.ledger-row .ledger-edit {
+  color: var(--teal);
 }
 
 .analysis-grid {
@@ -778,6 +850,20 @@ button:focus-visible {
   .ledger-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .form-actions,
+  .ledger-actions {
+    width: 100%;
+  }
+
+  .form-actions button,
+  .ledger-actions button {
+    flex: 1;
+  }
+
+  .ledger-date-head {
+    align-items: flex-start;
   }
 
   .ledger-amount {

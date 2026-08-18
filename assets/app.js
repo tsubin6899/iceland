@@ -83,12 +83,12 @@ function renderExpenses() {
   const summary = $('#expenseSummary');
   if (!summary || !expenses.categories) return;
   summary.innerHTML = [
-    ['個人已建檔支出', expenses.totalDisplay],
+    ['目前已花費', '$0', 'liveExpenseTotal'],
     ['個人結算合計', expenses.personalTotalDisplay],
     ['已付款/人', expenses.paidPersonalTotalDisplay],
     ['已預訂未付款/人', expenses.bookedUnpaidPersonalTotalDisplay],
     ['未預訂未付款/人', expenses.plannedUnpaidPersonalTotalDisplay]
-  ].map(([label,value]) => `<article class="expense-kpi"><strong>${value}</strong><span>${label}</span></article>`).join('');
+  ].map(([label,value,id]) => `<article class="expense-kpi"><strong${id ? ` id="${id}"` : ''}>${value}</strong><span${id ? ' id="liveExpenseCount"' : ''}>${label}</span></article>`).join('');
   $('#categoryChart').innerHTML = pieChart(expenses.categoryBreakdown || expenses.categories);
   $('#personalChart').innerHTML = barChart(expenses.personalBreakdown, {personal: true, label: '個人經費估算'});
   const statusGrid = $('#paymentStatusGrid');
@@ -99,6 +99,74 @@ function renderExpenses() {
   $('#expenseSource').textContent = `資料來源：${(expenses.sources || []).join('、')}。金額以 Notion 個人旅行支出結算欄位為準。`;
 }
 renderExpenses();
+
+function liveExpenseRates(source={}) {
+  return {
+    EUR: Number(source.eurRate) || 35.2,
+    USD: Number(source.usdRate) || 32,
+    ISK: Number(source.iskRate) || 0.23,
+    TWD: 1
+  };
+}
+
+function liveExpenseAmount(expense, rates) {
+  const amount = Number(expense && expense.amount || 0);
+  const currency = expense && expense.currency || 'TWD';
+  return amount * Number(rates[currency] || 1);
+}
+
+function renderLiveExpenseTotal(expenses, rates, sourceLabel) {
+  const rows = Array.isArray(expenses) ? expenses : [];
+  const total = rows.reduce((sum, expense) => sum + liveExpenseAmount(expense, rates), 0);
+  const totalNode = $('#liveExpenseTotal');
+  const countNode = $('#liveExpenseCount');
+  if (totalNode) totalNode.textContent = formatTwd(total);
+  if (countNode) countNode.textContent = `目前已花費 · ${rows.length} 筆 · ${sourceLabel}`;
+}
+
+function readLocalExpenseBook() {
+  try {
+    const raw = localStorage.getItem('iceland-expense-app-v1') || localStorage.getItem('iceland-expense-app-v0');
+    const state = raw ? JSON.parse(raw) : {};
+    return {
+      expenses: Array.isArray(state.expenses) ? state.expenses : [],
+      rates: liveExpenseRates(state)
+    };
+  } catch (error) {
+    return {expenses: [], rates: liveExpenseRates()};
+  }
+}
+
+function startLiveExpenseSync() {
+  const localBook = readLocalExpenseBook();
+  renderLiveExpenseTotal(localBook.expenses, localBook.rates, '本機帳本');
+  const settings = window.TRIP_EXPENSE_FIREBASE || {};
+  if (!settings.enabled || !settings.config || !window.firebase) return;
+  try {
+    if (!window.firebase.apps.length) window.firebase.initializeApp(settings.config);
+    const database = window.firebase.firestore();
+    database.settings({experimentalAutoDetectLongPolling: true});
+    const tripCode = localStorage.getItem('iceland-expense-trip-code') || settings.tripCode;
+    if (!tripCode) return;
+    const root = database.collection('tripExpenseBooks').doc(String(tripCode).trim().toUpperCase());
+    let rates = localBook.rates;
+    let cloudExpenses = null;
+    const update = () => {
+      if (cloudExpenses) renderLiveExpenseTotal(cloudExpenses, rates, '雲端同步');
+    };
+    root.collection('settings').doc('main').onSnapshot(doc => {
+      if (doc.exists) rates = liveExpenseRates(doc.data() || {});
+      update();
+    });
+    root.collection('expenses').onSnapshot(snapshot => {
+      cloudExpenses = snapshot.docs.map(doc => doc.data() || {});
+      update();
+    });
+  } catch (error) {
+    renderLiveExpenseTotal(localBook.expenses, localBook.rates, '本機帳本');
+  }
+}
+startLiveExpenseSync();
 
 const routeCities = [...new Set(trip.days.map(day => day.city).filter(Boolean))];
 const route = $('#route');

@@ -13,6 +13,7 @@
   var syncMode = "local";
   var isRemoteUpdate = false;
   var lastCloudSnapshotAt = 0;
+  var editingExpenseId = null;
 
   var money = new Intl.NumberFormat("zh-TW", {
     style: "currency",
@@ -59,7 +60,8 @@
       "syncStatus", "tripCodeForm", "tripCode", "totalSpent", "expenseCount", "averageShare",
       "travelerCount", "settleCount", "eurRate", "usdRate", "iskRate", "expenseForm", "date", "title", "category",
       "amount", "currency", "paidBy", "splitWith", "splitModeEqual", "splitModeCustom",
-      "splitRemainder", "selectAll", "selectNone", "personForm",
+      "splitRemainder", "selectAll", "selectNone", "expenseFormEyebrow", "expenseFormTitle", "expenseSubmit",
+      "cancelExpenseEdit", "personForm",
       "personName", "personList", "settlements", "balances", "categories", "ledger",
       "filterCategory", "exportCsv", "exportBackup", "importBackup", "importBackupFile", "resetData", "closePeriod", "periods",
       "tripGrandTotal", "tripGrandCount", "tripPerPerson", "tripPeopleCount", "tripCategoryChart",
@@ -70,7 +72,8 @@
   }
 
   function bindEvents() {
-    elements.expenseForm.addEventListener("submit", addExpense);
+    elements.expenseForm.addEventListener("submit", saveExpense);
+    elements.cancelExpenseEdit.addEventListener("click", cancelExpenseEdit);
     elements.personForm.addEventListener("submit", addPerson);
     elements.tripCodeForm.addEventListener("submit", changeTripCode);
     elements.eurRate.addEventListener("change", updateRate);
@@ -252,9 +255,10 @@
   }
 
   function toTwd(amount, currencyCode) {
-    if (currencyCode === "EUR") return Number(amount) * state.eurRate;
-    if (currencyCode === "USD") return Number(amount) * state.usdRate;
-    if (currencyCode === "ISK") return Number(amount) * state.iskRate;
+    var rates = state || defaults;
+    if (currencyCode === "EUR") return Number(amount) * rates.eurRate;
+    if (currencyCode === "USD") return Number(amount) * rates.usdRate;
+    if (currencyCode === "ISK") return Number(amount) * rates.iskRate;
     return Number(amount);
   }
 
@@ -433,7 +437,7 @@
     return state.expenses.filter(function (expense) { return !expense.settlementId; });
   }
 
-  function addExpense(event) {
+  function saveExpense(event) {
     event.preventDefault();
     var splitDetails = readSplitDetails();
     if (!splitDetails.splitWith.length) {
@@ -444,7 +448,14 @@
       alert(splitDetails.error);
       return;
     }
+    var existing = editingExpenseId ? findExpense(editingExpenseId) : null;
+    if (editingExpenseId && (!existing || existing.settlementId)) {
+      alert(existing ? "這筆支出已結帳，為避免影響歷史結算結果，目前不能編輯。" : "找不到要編輯的支出，可能已被其他裝置刪除。");
+      cancelExpenseEdit();
+      return;
+    }
     var expense = normalizeExpense({
+      id: existing ? existing.id : null,
       date: elements.date.value,
       title: elements.title.value.trim(),
       category: elements.category.value,
@@ -454,10 +465,12 @@
       splitWith: splitDetails.splitWith,
       splitMode: splitDetails.splitMode,
       splitShares: splitDetails.splitShares,
-      clientCreatedAt: Date.now()
+      settlementId: existing ? existing.settlementId : null,
+      createdAt: existing ? existing.createdAt : null,
+      clientCreatedAt: existing ? existing.clientCreatedAt : Date.now()
     });
     if (syncMode === "firebase") {
-      tripRef().collection("expenses").add({
+      var payload = {
         date: expense.date,
         title: expense.title,
         category: expense.category,
@@ -467,15 +480,29 @@
         splitWith: expense.splitWith,
         splitMode: expense.splitMode,
         splitShares: expense.splitShares,
-        settlementId: null,
-        clientCreatedAt: expense.clientCreatedAt,
-        createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
-      }).then(afterExpenseSaved).catch(function (error) {
-        setSyncStatus("新增失敗：" + readableError(error));
+        settlementId: expense.settlementId,
+        clientCreatedAt: expense.clientCreatedAt
+      };
+      var request;
+      if (existing) {
+        payload.updatedAt = window.firebase.firestore.FieldValue.serverTimestamp();
+        request = tripRef().collection("expenses").doc(existing.id).set(payload, { merge: true });
+      } else {
+        payload.createdAt = window.firebase.firestore.FieldValue.serverTimestamp();
+        request = tripRef().collection("expenses").add(payload);
+      }
+      request.then(afterExpenseSaved).catch(function (error) {
+        setSyncStatus((existing ? "修改" : "新增") + "失敗：" + readableError(error));
       });
     } else {
-      expense.id = "expense-" + Date.now();
-      state.expenses.unshift(expense);
+      if (existing) {
+        state.expenses = state.expenses.map(function (item) {
+          return item.id === existing.id ? expense : item;
+        });
+      } else {
+        expense.id = "expense-" + Date.now();
+        state.expenses.unshift(expense);
+      }
       saveState();
       afterExpenseSaved();
       render();
@@ -483,9 +510,68 @@
   }
 
   function afterExpenseSaved() {
+    editingExpenseId = null;
     elements.expenseForm.reset();
     elements.splitModeEqual.checked = true;
+    setExpenseFormMode(false);
     setDefaultDate();
+    renderPeopleControls();
+  }
+
+  function findExpense(id) {
+    return state.expenses.filter(function (expense) { return expense.id === id; })[0] || null;
+  }
+
+  function startExpenseEdit(id) {
+    var expense = findExpense(id);
+    if (!expense) return;
+    if (expense.settlementId) {
+      alert("這筆支出已結帳，為避免影響歷史結算結果，目前不能編輯。");
+      return;
+    }
+    editingExpenseId = id;
+    populateExpenseForm(expense);
+    elements.expenseForm.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function cancelExpenseEdit() {
+    editingExpenseId = null;
+    elements.expenseForm.reset();
+    elements.splitModeEqual.checked = true;
+    setExpenseFormMode(false);
+    setDefaultDate();
+    renderPeopleControls();
+  }
+
+  function setExpenseFormMode(isEditing) {
+    elements.expenseForm.classList.toggle("is-editing", isEditing);
+    elements.expenseFormEyebrow.textContent = isEditing ? "Edit Expense" : "New Expense";
+    elements.expenseFormTitle.textContent = isEditing ? "編輯支出" : "新增一筆支出";
+    elements.expenseSubmit.textContent = isEditing ? "儲存修改" : "加入";
+    elements.cancelExpenseEdit.hidden = !isEditing;
+  }
+
+  function populateExpenseForm(expense) {
+    if (!expense) return;
+    setExpenseFormMode(true);
+    elements.date.value = expense.date;
+    elements.title.value = expense.title;
+    elements.category.value = expense.category;
+    elements.amount.value = expense.amount;
+    elements.currency.value = expense.currency;
+    elements.paidBy.value = expense.paidBy;
+    elements.splitModeCustom.checked = expense.splitMode === "custom";
+    elements.splitModeEqual.checked = expense.splitMode !== "custom";
+    Array.from(elements.splitWith.querySelectorAll(".check-card")).forEach(function (card) {
+      var checkbox = card.querySelector("input[type='checkbox']");
+      var shareInput = card.querySelector(".split-share-input");
+      var selected = expense.splitWith.indexOf(checkbox.value) >= 0;
+      checkbox.checked = selected;
+      shareInput.value = selected && expense.splitMode === "custom"
+        ? Number((expense.splitShares || {})[checkbox.value] || 0)
+        : "";
+    });
+    updateSplitModeUi();
   }
 
   function addPerson(event) {
@@ -527,7 +613,7 @@
   }
 
   function deleteExpense(id) {
-    var expense = state.expenses.filter(function (item) { return item.id === id; })[0];
+    var expense = findExpense(id);
     if (!expense) return;
     var title = expense.title || "未命名支出";
     var message = "確定要刪除這筆支出嗎？\n\n" +
@@ -536,6 +622,7 @@
       "金額：" + currency(expense.twd) + "\n\n" +
       "刪除後無法復原。";
     if (!confirm(message)) return;
+    if (editingExpenseId === id) cancelExpenseEdit();
     if (syncMode === "firebase") {
       tripRef().collection("expenses").doc(id).delete().catch(function (error) {
         setSyncStatus("刪除失敗：" + readableError(error));
@@ -652,6 +739,7 @@
   }
 
   function render() {
+    if (editingExpenseId && !findExpense(editingExpenseId)) editingExpenseId = null;
     elements.tripCode.value = state.tripCode;
     elements.eurRate.value = state.eurRate;
     elements.usdRate.value = state.usdRate;
@@ -677,6 +765,8 @@
       input.addEventListener("input", updateSplitModeUi);
       input.addEventListener("change", updateSplitModeUi);
     });
+    if (editingExpenseId) populateExpenseForm(findExpense(editingExpenseId));
+    else setExpenseFormMode(false);
     elements.personList.innerHTML = state.people.map(function (person) {
       return '<div class="person-row"><strong>' + escapeHtml(person) + "</strong>" +
         '<button type="button" data-person="' + escapeHtml(person) + '">移除</button></div>';
@@ -786,8 +876,20 @@
     var category = elements.filterCategory.value || "全部";
     var rows = state.expenses.filter(function (expense) {
       return category === "全部" || expense.category === category;
+    }).sort(function (a, b) {
+      var byDate = String(b.date || "").localeCompare(String(a.date || ""));
+      return byDate || expenseTime(b) - expenseTime(a);
     });
-    elements.ledger.innerHTML = rows.map(function (expense) {
+    var groups = {};
+    rows.forEach(function (expense) {
+      var key = expense.date || "未填日期";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(expense);
+    });
+    elements.ledger.innerHTML = Object.keys(groups).map(function (date) {
+      var dayExpenses = groups[date];
+      var dayTotal = dayExpenses.reduce(sumTwd, 0);
+      var expenseRows = dayExpenses.map(function (expense) {
       var original = originalMoney(expense.amount, expense.currency);
       var status = expense.settlementId ? "已結帳" : "未結";
       var splitLabel = splitSummary(expense);
@@ -797,12 +899,30 @@
         '<span>' + escapeHtml(expense.category) + '</span></span> / ' + escapeHtml(expense.paidBy) +
         " 先付 / 分攤 " + splitLabel +
         '</span></div><div class="ledger-amount">' + currency(expense.twd) +
-        '<div class="ledger-meta">' + original + '</div></div><button type="button" data-id="' +
-        escapeHtml(expense.id) + '">刪除</button></div>';
+        '<div class="ledger-meta">' + original + '</div></div><div class="ledger-actions">' +
+        (expense.settlementId ? "" : '<button class="ledger-edit" type="button" data-action="edit" data-id="' +
+          escapeHtml(expense.id) + '">編輯</button>') +
+        '<button type="button" data-action="delete" data-id="' + escapeHtml(expense.id) + '">刪除</button></div></div>';
+      }).join("");
+      return '<section class="ledger-date-group"><header class="ledger-date-head"><div><span>' +
+        escapeHtml(formatExpenseDate(date)) + '</span><small>' + dayExpenses.length +
+        ' 筆支出</small></div><strong>' + currency(dayTotal) + '</strong></header><div class="ledger-date-items">' +
+        expenseRows + '</div></section>';
     }).join("") || emptyHtml("目前沒有支出紀錄");
-    Array.from(elements.ledger.querySelectorAll("button")).forEach(function (button) {
-      button.addEventListener("click", function () { deleteExpense(button.dataset.id); });
+    Array.from(elements.ledger.querySelectorAll("[data-action]" )).forEach(function (button) {
+      button.addEventListener("click", function () {
+        if (button.dataset.action === "edit") startExpenseEdit(button.dataset.id);
+        else deleteExpense(button.dataset.id);
+      });
     });
+  }
+
+  function formatExpenseDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    var parts = value.split("-");
+    var date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    var weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+    return parts[0] + "/" + parts[1] + "/" + parts[2] + "（週" + weekdays[date.getDay()] + "）";
   }
 
   function renderPeriods() {
