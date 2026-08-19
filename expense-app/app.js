@@ -15,6 +15,7 @@
   var lastCloudSnapshotAt = 0;
   var editingExpenseId = null;
   var calendarMonth = null;
+  var selectedCalendarDate = null;
 
   var money = new Intl.NumberFormat("zh-TW", {
     style: "currency",
@@ -66,7 +67,8 @@
       "personName", "personList", "settlements", "balances", "categories", "ledger",
       "filterCategory", "exportCsv", "exportBackup", "importBackup", "importBackupFile", "resetData", "closePeriod", "periods",
       "tripGrandTotal", "tripGrandCount", "tripPerPerson", "tripPeopleCount", "tripCategoryChart",
-      "calendarPrev", "calendarNext", "calendarMonthLabel", "expenseCalendar", "calendarSummary", "peoplePanel"
+      "calendarPrev", "calendarNext", "calendarMonthLabel", "expenseCalendar", "calendarSummary",
+      "calendarDayDetails", "peoplePanel"
     ].forEach(function (id) {
       elements[id] = document.getElementById(id);
     });
@@ -980,6 +982,7 @@
     var parts = calendarMonth.split("-");
     var target = new Date(Number(parts[0]), Number(parts[1]) - 1 + offset, 1);
     calendarMonth = target.getFullYear() + "-" + String(target.getMonth() + 1).padStart(2, "0");
+    selectedCalendarDate = null;
     renderCalendar();
   }
 
@@ -990,6 +993,7 @@
 
   function renderCalendar() {
     if (!calendarMonth) calendarMonth = initialCalendarMonth();
+    if (selectedCalendarDate && selectedCalendarDate.slice(0, 7) !== calendarMonth) selectedCalendarDate = null;
     var parts = calendarMonth.split("-");
     var year = Number(parts[0]);
     var month = Number(parts[1]);
@@ -1018,20 +1022,66 @@
       }
       var dateKey = calendarMonth + "-" + String(day).padStart(2, "0");
       var detail = daily[dateKey];
+      var isSelected = dateKey === selectedCalendarDate;
       var className = "calendar-day" + (detail ? " has-expense" : "") +
-        (dateKey === localDateKey(new Date()) ? " is-today" : "");
+        (dateKey === localDateKey(new Date()) ? " is-today" : "") + (isSelected ? " is-selected" : "");
       var expenseHtml = detail
         ? '<strong class="calendar-day-amount">' + currency(detail.total) + '</strong><small>' + detail.count + " 筆</small>"
         : "";
-      cells.push('<article class="' + className + '" role="gridcell" aria-label="' +
+      cells.push('<button class="' + className + '" type="button" role="gridcell" data-calendar-date="' +
+        dateKey + '" aria-controls="calendarDayDetails" aria-expanded="' + (isSelected ? "true" : "false") +
+        '" aria-label="' +
         escapeHtml(formatExpenseDate(dateKey) + (detail ? "，消費 " + currency(detail.total) : "，無消費")) +
-        '"><span class="calendar-day-number">' + day + "</span>" + expenseHtml + "</article>");
+        '"><span class="calendar-day-number">' + day + "</span>" + expenseHtml + "</button>");
     }
     elements.calendarMonthLabel.textContent = year + " 年 " + month + " 月";
     elements.expenseCalendar.innerHTML = cells.join("");
     elements.calendarSummary.textContent = monthExpenses
       ? "本月共 " + monthExpenses + " 筆消費，合計 " + currency(monthTotal)
       : "本月尚無消費紀錄";
+    Array.from(elements.expenseCalendar.querySelectorAll("[data-calendar-date]")).forEach(function (button) {
+      button.addEventListener("click", function () { toggleCalendarDate(button.dataset.calendarDate); });
+    });
+    renderCalendarDayDetails();
+  }
+
+  function toggleCalendarDate(date) {
+    selectedCalendarDate = selectedCalendarDate === date ? null : date;
+    renderCalendar();
+    if (selectedCalendarDate && elements.calendarDayDetails && !elements.calendarDayDetails.hidden) {
+      elements.calendarDayDetails.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  function renderCalendarDayDetails() {
+    if (!selectedCalendarDate) {
+      elements.calendarDayDetails.hidden = true;
+      elements.calendarDayDetails.innerHTML = "";
+      return;
+    }
+    var expenses = state.expenses.filter(function (expense) {
+      return expense.date === selectedCalendarDate;
+    }).sort(function (a, b) { return expenseTime(b) - expenseTime(a); });
+    var total = expenses.reduce(sumTwd, 0);
+    var rows = expenses.map(function (expense) {
+      var status = expense.settlementId ? "已結帳" : "未結";
+      return '<article class="calendar-detail-row"><div class="calendar-detail-main"><strong>' +
+        escapeHtml(expense.title) + ' <small class="status-tag">' + status + '</small></strong><span class="calendar-detail-meta">' +
+        '<span class="category-inline">' + categoryIcon(expense.category) + '<span>' + escapeHtml(expense.category) +
+        '</span></span> · ' + escapeHtml(expense.paidBy) + " 先付 · 分攤 " + splitSummary(expense) +
+        '</span></div><div class="calendar-detail-amount"><strong>' + currency(expense.twd) + '</strong><small>' +
+        originalMoney(expense.amount, expense.currency) + "</small></div></article>";
+    }).join("");
+    elements.calendarDayDetails.hidden = false;
+    elements.calendarDayDetails.innerHTML = '<header class="calendar-detail-head"><div><span>' +
+      escapeHtml(formatExpenseDate(selectedCalendarDate)) + '</span><small>' + expenses.length +
+      ' 筆消費</small></div><strong>' + currency(total) +
+      '</strong><button class="calendar-detail-close" type="button" aria-label="收合當日消費明細">收合</button></header>' +
+      (rows ? '<div class="calendar-detail-list">' + rows + '</div>' : '<p class="calendar-detail-empty">這一天沒有消費紀錄</p>');
+    elements.calendarDayDetails.querySelector(".calendar-detail-close").addEventListener("click", function () {
+      selectedCalendarDate = null;
+      renderCalendar();
+    });
   }
 
   function exportCsv() {
