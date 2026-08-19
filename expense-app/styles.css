@@ -517,6 +517,7 @@ button:focus-visible {
 
 .ledger-date-items {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 8px;
 }
@@ -1047,6 +1048,10 @@ button.calendar-day:active {
 }
 
 @media (max-width: 980px) {
+  .ledger-date-items {
+    grid-template-columns: 1fr;
+  }
+
   .summary-grid,
   .analysis-grid,
   .workspace,
