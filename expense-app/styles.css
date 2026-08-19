@@ -1002,12 +1002,17 @@ button.calendar-day:active {
 }
 
 .ledger-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px 112px;
   align-items: flex-start;
+  justify-content: initial;
+  column-gap: 16px;
 }
 
 .ledger-main {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .ledger-title {
@@ -1019,10 +1024,14 @@ button.calendar-day:active {
 }
 
 .ledger-amount {
-  min-width: 118px;
+  min-width: 0;
   color: var(--blue);
   font-weight: 900;
   text-align: right;
+}
+
+.ledger-actions {
+  justify-content: flex-end;
 }
 
 .empty-state {
@@ -1104,6 +1113,10 @@ button.calendar-day:active {
     flex-direction: column;
   }
 
+  .ledger-row {
+    display: flex;
+  }
+
   .form-actions,
   .ledger-actions {
     width: 100%;
@@ -1119,6 +1132,7 @@ button.calendar-day:active {
   }
 
   .ledger-amount {
+    width: 100%;
     text-align: left;
   }
 
