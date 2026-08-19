@@ -14,6 +14,7 @@
   var isRemoteUpdate = false;
   var lastCloudSnapshotAt = 0;
   var editingExpenseId = null;
+  var calendarMonth = null;
 
   var money = new Intl.NumberFormat("zh-TW", {
     style: "currency",
@@ -65,7 +66,7 @@
       "personName", "personList", "settlements", "balances", "categories", "ledger",
       "filterCategory", "exportCsv", "exportBackup", "importBackup", "importBackupFile", "resetData", "closePeriod", "periods",
       "tripGrandTotal", "tripGrandCount", "tripPerPerson", "tripPeopleCount", "tripCategoryChart",
-      "peoplePanel"
+      "calendarPrev", "calendarNext", "calendarMonthLabel", "expenseCalendar", "calendarSummary", "peoplePanel"
     ].forEach(function (id) {
       elements[id] = document.getElementById(id);
     });
@@ -92,6 +93,8 @@
     elements.importBackupFile.addEventListener("change", importBackup);
     elements.resetData.addEventListener("click", resetData);
     elements.closePeriod.addEventListener("click", closeCurrentPeriod);
+    elements.calendarPrev.addEventListener("click", function () { shiftCalendarMonth(-1); });
+    elements.calendarNext.addEventListener("click", function () { shiftCalendarMonth(1); });
     if (mobilePeopleQuery.addEventListener) {
       mobilePeopleQuery.addEventListener("change", placePeoplePanel);
     } else if (mobilePeopleQuery.addListener) {
@@ -469,6 +472,7 @@
       createdAt: existing ? existing.createdAt : null,
       clientCreatedAt: existing ? existing.clientCreatedAt : Date.now()
     });
+    if (/^\d{4}-\d{2}$/.test(expense.date.slice(0, 7))) calendarMonth = expense.date.slice(0, 7);
     if (syncMode === "firebase") {
       var payload = {
         date: expense.date,
@@ -752,6 +756,7 @@
     renderLedger();
     renderPeriods();
     renderTripTotals();
+    renderCalendar();
   }
 
   function renderPeopleControls() {
@@ -959,6 +964,74 @@
         currency(row.amount) + ' · ' + share + '%</span></div><div class="bar-track"><div class="bar-fill" style="width:' +
         width + '%"></div></div></div>';
     }).join("") : emptyHtml("目前沒有旅行支出資料");
+  }
+
+  function initialCalendarMonth() {
+    var months = state.expenses.map(function (expense) {
+      return /^\d{4}-\d{2}-\d{2}$/.test(expense.date) ? expense.date.slice(0, 7) : "";
+    }).filter(Boolean).sort();
+    if (months.length) return months[months.length - 1];
+    var today = new Date();
+    return today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0");
+  }
+
+  function shiftCalendarMonth(offset) {
+    if (!calendarMonth) calendarMonth = initialCalendarMonth();
+    var parts = calendarMonth.split("-");
+    var target = new Date(Number(parts[0]), Number(parts[1]) - 1 + offset, 1);
+    calendarMonth = target.getFullYear() + "-" + String(target.getMonth() + 1).padStart(2, "0");
+    renderCalendar();
+  }
+
+  function localDateKey(date) {
+    return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" +
+      String(date.getDate()).padStart(2, "0");
+  }
+
+  function renderCalendar() {
+    if (!calendarMonth) calendarMonth = initialCalendarMonth();
+    var parts = calendarMonth.split("-");
+    var year = Number(parts[0]);
+    var month = Number(parts[1]);
+    var firstWeekday = new Date(year, month - 1, 1).getDay();
+    var dayCount = new Date(year, month, 0).getDate();
+    var daily = {};
+    state.expenses.forEach(function (expense) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(expense.date) || expense.date.slice(0, 7) !== calendarMonth) return;
+      if (!daily[expense.date]) daily[expense.date] = { total: 0, count: 0 };
+      daily[expense.date].total += Number(expense.twd || 0);
+      daily[expense.date].count += 1;
+    });
+    var monthExpenses = Object.keys(daily).reduce(function (total, date) {
+      return total + daily[date].count;
+    }, 0);
+    var monthTotal = Object.keys(daily).reduce(function (total, date) {
+      return total + daily[date].total;
+    }, 0);
+    var cells = [];
+    var requiredCells = Math.ceil((firstWeekday + dayCount) / 7) * 7;
+    for (var index = 0; index < requiredCells; index += 1) {
+      var day = index - firstWeekday + 1;
+      if (day < 1 || day > dayCount) {
+        cells.push('<div class="calendar-day calendar-day--empty" aria-hidden="true"></div>');
+        continue;
+      }
+      var dateKey = calendarMonth + "-" + String(day).padStart(2, "0");
+      var detail = daily[dateKey];
+      var className = "calendar-day" + (detail ? " has-expense" : "") +
+        (dateKey === localDateKey(new Date()) ? " is-today" : "");
+      var expenseHtml = detail
+        ? '<strong class="calendar-day-amount">' + currency(detail.total) + '</strong><small>' + detail.count + " 筆</small>"
+        : "";
+      cells.push('<article class="' + className + '" role="gridcell" aria-label="' +
+        escapeHtml(formatExpenseDate(dateKey) + (detail ? "，消費 " + currency(detail.total) : "，無消費")) +
+        '"><span class="calendar-day-number">' + day + "</span>" + expenseHtml + "</article>");
+    }
+    elements.calendarMonthLabel.textContent = year + " 年 " + month + " 月";
+    elements.expenseCalendar.innerHTML = cells.join("");
+    elements.calendarSummary.textContent = monthExpenses
+      ? "本月共 " + monthExpenses + " 筆消費，合計 " + currency(monthTotal)
+      : "本月尚無消費紀錄";
   }
 
   function exportCsv() {

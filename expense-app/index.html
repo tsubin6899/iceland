@@ -256,6 +256,25 @@
           <div class="trip-category-chart" id="tripCategoryChart"></div>
         </div>
       </section>
+
+      <section class="panel calendar-panel">
+        <header class="panel-header">
+          <div>
+            <p>Calendar</p>
+            <h2>每日消費日曆</h2>
+          </div>
+          <div class="calendar-nav" aria-label="切換日曆月份">
+            <button id="calendarPrev" type="button" aria-label="上一個月">‹</button>
+            <strong id="calendarMonthLabel" aria-live="polite"></strong>
+            <button id="calendarNext" type="button" aria-label="下一個月">›</button>
+          </div>
+        </header>
+        <div class="calendar-weekdays" aria-hidden="true">
+          <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+        </div>
+        <div class="expense-calendar" id="expenseCalendar" role="grid" aria-label="每日消費金額"></div>
+        <p class="calendar-summary" id="calendarSummary"></p>
+      </section>
     </main>
 
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
