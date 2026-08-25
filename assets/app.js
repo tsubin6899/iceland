@@ -7,6 +7,11 @@ const emphasizeNote = (value='') => {
 };
 const typeClass = (type, title='') => type === '交通' ? 'transport' : /餐|超市|採買/.test(`${type}${title}`) ? 'food' : '';
 const fallbackAttr = fallbackImage ? ` onerror="this.onerror=null;this.src='${fallbackImage}'"` : '';
+const droneLevel = value => ['prohibited','schedule','restricted','permission','general'].includes(value) ? value : 'general';
+const droneSource = drone => drone && drone.sourceUrl ? `<a href="${escapeHtml(drone.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(drone.sourceLabel || '官方規定')}</a>` : '';
+const droneInline = drone => !drone ? '' : `<aside class="drone-inline drone-inline--${droneLevel(drone.level)}"><div class="drone-inline__head"><span>空拍限制</span><strong>${escapeHtml(drone.label || '請確認')}</strong></div><p>${escapeHtml(drone.summary || '')}</p>${droneSource(drone)}</aside>`;
+const droneAlert = drone => !drone ? '' : `<aside class="drone-alert drone-alert--${droneLevel(drone.level)}"><div class="drone-alert__head"><span>空拍限制</span><strong>${escapeHtml(drone.label || '請確認')}</strong></div><p>${escapeHtml(drone.summary || '')}</p><small>查核日期 ${escapeHtml(drone.checked || '')}</small>${droneSource(drone)}</aside>`;
+const droneMini = drone => !drone ? '' : `<span class="drone-mini drone-mini--${droneLevel(drone.level)}">空拍：${escapeHtml(drone.label || '請確認')}</span>`;
 const formatTwd = value => `$${Number(value || 0).toLocaleString('zh-TW', {maximumFractionDigits: 0})}`;
 const formatStatMoney = value => `$${Number(value || 0).toLocaleString('zh-TW', {maximumFractionDigits: 0})}`;
 const expensePalette = ['#2d6f89', '#b95039', '#287d72', '#bc8330', '#6f5aa8', '#c05a7b', '#4f7f45', '#5c7180', '#9b6542'];
@@ -17,6 +22,12 @@ const pendingPersonal = Number(trip.expenses.bookedUnpaidPersonalTotal || 0) + N
 const pendingTotal = pendingPersonal * participantCount;
 const dailyPersonal = trip.summary.dayCount ? Number(trip.expenses.personalTotal || 0) / Number(trip.summary.dayCount || 1) : 0;
 const paidPercent = knownTotal ? `${(paidTotal / knownTotal * 100).toFixed(1)}% 已完成付款` : '尚未付款';
+const droneMeta = trip.droneMeta || {};
+const droneCounts = droneMeta.counts || {};
+const droneStopCount = Number(droneCounts.prohibited || 0) + Number(droneCounts.schedule || 0);
+document.querySelectorAll('[data-drone-overview]').forEach(node => {
+  node.innerHTML = `<div class="drone-overview__head"><strong>空拍限制已逐點標註</strong><small>官方資料查核：${escapeHtml(droneMeta.checked || '')}</small></div><p>紅色代表休閒空拍禁止或你們排定時段禁飛；黃色為區域／時段管制；藍色須事前取得許可。所有地點仍須遵守目視飛行、最高 120 公尺、不得飛越群眾、禮讓載人航空器等一般規則。規定與臨時空域可能變更，起飛當日再查 <a href="${escapeHtml(droneMeta.mapUrl || '#')}" target="_blank" rel="noreferrer">Iceland Drone Map</a>。</p><div class="drone-legend"><span class="drone-chip drone-chip--prohibited">禁止／行程時段禁飛 ${droneStopCount}</span><span class="drone-chip drone-chip--restricted">區域／即時管制 ${Number(droneCounts.restricted || 0)}</span><span class="drone-chip drone-chip--permission">需事前同意 ${Number(droneCounts.permission || 0)}</span><span class="drone-chip drone-chip--general">一般規則 ${Number(droneCounts.general || 0)}</span></div>`;
+});
 $('#stats').innerHTML = [
   {label:'目前已知總支出', value:formatStatMoney(knownTotal), note:'含交通、住宿、門票及寄放'},
   {label:'已付款', value:formatStatMoney(paidTotal), note:paidPercent, tone:'paid'},
@@ -184,7 +195,7 @@ function renderTimeline(filter='全部') {
     if (filter !== '全部' && day.day !== filter) return '';
     const items = day.items;
     if (!items.length) return '';
-    return `<article class="day"><div class="day__label"><strong>${day.day}</strong><span>${day.date}</span><small>${day.city || ''}</small></div><div class="day__items">${items.map(item => `<section class="event"><img class="event__image" src="${item.imageUrl || fallbackImage}" alt="${item.行程 || '行程照片'}" loading="lazy"${fallbackAttr}><time>${item.displayTime || ''}</time><span class="pill ${typeClass(item.性質,item.行程)}">${item.性質 || ''}</span><div><h3>${item.行程 || ''}</h3><p>${item.說明 || ''}</p>${item.冬季狀況 ? `<p><strong>冬季：</strong>${item.冬季狀況}</p>` : ''}</div>${item['Google Map位置'] ? `<a class="map" href="${item['Google Map位置']}" target="_blank" rel="noreferrer">Map</a>` : ''}</section>`).join('')}</div></article>`;
+    return `<article class="day"><div class="day__label"><strong>${day.day}</strong><span>${day.date}</span><small>${day.city || ''}</small></div><div class="day__items">${items.map(item => `<section class="event"><img class="event__image" src="${item.imageUrl || fallbackImage}" alt="${item.行程 || '行程照片'}" loading="lazy"${fallbackAttr}><time>${item.displayTime || ''}</time><span class="pill ${typeClass(item.性質,item.行程)}">${item.性質 || ''}</span><div><h3>${item.行程 || ''}</h3><p>${item.說明 || ''}</p>${item.冬季狀況 ? `<p><strong>冬季：</strong>${item.冬季狀況}</p>` : ''}${droneInline(item.drone)}</div>${item['Google Map位置'] ? `<a class="map" href="${item['Google Map位置']}" target="_blank" rel="noreferrer">Map</a>` : ''}</section>`).join('')}</div></article>`;
   }).join('');
 }
 renderTimeline();
@@ -249,13 +260,13 @@ function renderAttractions() {
     const image = item.imageUrl || fallbackImage;
     const mapLink = item.map ? `<a class="map" href="${item.map}" target="_blank" rel="noreferrer">Google Map</a>` : '';
     const pageLink = item.pageUrl ? `<a class="map" href="${item.pageUrl}">開啟景點分頁</a>` : '';
-    reader.innerHTML = `<figure class="spot-photo"><img loading="lazy" src="${image}" alt="${escapeHtml(item.title)}景點照片"${fallbackAttr}></figure><header class="reading-head"><p class="eyebrow">${escapeHtml(item.city || 'Iceland')}</p><h3>${escapeHtml(item.title)}</h3><span>${escapeHtml(item.day || '')} · ${escapeHtml(item.date || '')}</span></header><div class="markdown">${item.fullHtml || `<section class="reading-block reading-block--supplement"><h2>補充資訊</h2><p>${escapeHtml(item.description || '')}</p></section>`}</div><div class="reader-actions">${pageLink}${mapLink}</div>`;
+    reader.innerHTML = `<figure class="spot-photo"><img loading="lazy" src="${image}" alt="${escapeHtml(item.title)}景點照片"${fallbackAttr}></figure><header class="reading-head"><p class="eyebrow">${escapeHtml(item.city || 'Iceland')}</p><h3>${escapeHtml(item.title)}</h3><span>${escapeHtml(item.day || '')} · ${escapeHtml(item.date || '')}</span></header>${droneAlert(item.drone)}<div class="markdown">${item.fullHtml || `<section class="reading-block reading-block--supplement"><h2>補充資訊</h2><p>${escapeHtml(item.description || '')}</p></section>`}</div><div class="reader-actions">${pageLink}${mapLink}</div>`;
     grid.querySelectorAll('.spot-card').forEach((card, index) => card.classList.toggle('active', index === activeIndex));
   }
 
   function showAttractions(region) {
     visible = region === '全部' ? trip.attractions : trip.attractions.filter(item => (item.city || '未分類') === region);
-    grid.innerHTML = visible.map((item, index) => `<button class="spot-card${index === 0 ? ' active' : ''}" data-index="${index}"><img loading="lazy" src="${item.imageUrl || fallbackImage}" alt="${escapeHtml(item.title)}縮圖"${fallbackAttr}><span>${escapeHtml(item.city || 'Iceland')}</span><strong>${escapeHtml(item.title)}</strong><em>閱讀完整介紹</em></button>`).join('');
+    grid.innerHTML = visible.map((item, index) => `<button class="spot-card${index === 0 ? ' active' : ''}" data-index="${index}"><img loading="lazy" src="${item.imageUrl || fallbackImage}" alt="${escapeHtml(item.title)}縮圖"${fallbackAttr}><span>${escapeHtml(item.city || 'Iceland')}</span><strong>${escapeHtml(item.title)}</strong>${droneMini(item.drone)}<em>閱讀完整介紹</em></button>`).join('');
     openArticle(visible[0], 0);
   }
 
