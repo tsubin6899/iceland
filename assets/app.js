@@ -12,6 +12,11 @@ const droneSource = drone => drone && drone.sourceUrl ? `<a href="${escapeHtml(d
 const droneInline = drone => !drone ? '' : `<aside class="drone-inline drone-inline--${droneLevel(drone.level)}"><div class="drone-inline__head"><span>空拍限制</span><strong>${escapeHtml(drone.label || '請確認')}</strong></div><p>${escapeHtml(drone.summary || '')}</p>${droneSource(drone)}</aside>`;
 const droneAlert = drone => !drone ? '' : `<aside class="drone-alert drone-alert--${droneLevel(drone.level)}"><div class="drone-alert__head"><span>空拍限制</span><strong>${escapeHtml(drone.label || '請確認')}</strong></div><p>${escapeHtml(drone.summary || '')}</p><small>查核日期 ${escapeHtml(drone.checked || '')}</small>${droneSource(drone)}</aside>`;
 const droneMini = drone => !drone ? '' : `<span class="drone-mini drone-mini--${droneLevel(drone.level)}">空拍：${escapeHtml(drone.label || '請確認')}</span>`;
+const catalogFacts = catalog => !catalog ? '' : [['停留',catalog.stay],['攝影',catalog.photo],['停車',catalog.parking],['廁所',catalog.toilet],['推薦',catalog.rating]].filter(item => item[1]).map(item => `<span><small>${escapeHtml(item[0])}</small><strong>${escapeHtml(item[1])}</strong></span>`).join('');
+const catalogSources = catalog => !catalog ? '' : (catalog.sources || []).map(source => `<a href="${escapeHtml(source.url || '#')}" target="_blank" rel="noreferrer">${escapeHtml(source.label || '總目錄來源')}</a>`).join('');
+const catalogInline = catalog => !catalog ? '' : `<aside class="catalog-inline"><div class="catalog-inline__head"><strong>總目錄補充</strong><small>比對 ${escapeHtml(catalog.checked || '')}</small></div><div class="catalog-facts">${catalogFacts(catalog)}</div><p>${escapeHtml(catalog.advice || '')}</p>${catalog.facilities?.length ? `<p class="catalog-facilities"><strong>設施：</strong>${escapeHtml(catalog.facilities.join('、'))}</p>` : ''}<div class="catalog-sources">${catalogSources(catalog)}</div></aside>`;
+const catalogAlert = catalog => !catalog ? '' : `<aside class="catalog-alert"><div class="catalog-alert__head"><span>冰島景點總目錄補充</span><small>比對日期 ${escapeHtml(catalog.checked || '')}</small></div><div class="catalog-facts">${catalogFacts(catalog)}</div><p>${escapeHtml(catalog.advice || '')}</p>${catalog.facilities?.length ? `<p class="catalog-facilities"><strong>現場設施：</strong>${escapeHtml(catalog.facilities.join('、'))}</p>` : ''}<div class="catalog-sources">${catalogSources(catalog)}</div></aside>`;
+const catalogMini = catalog => !catalog ? '' : `<span class="catalog-mini">總目錄資料已整合</span>`;
 const formatTwd = value => `$${Number(value || 0).toLocaleString('zh-TW', {maximumFractionDigits: 0})}`;
 const formatStatMoney = value => `$${Number(value || 0).toLocaleString('zh-TW', {maximumFractionDigits: 0})}`;
 const expensePalette = ['#2d6f89', '#b95039', '#287d72', '#bc8330', '#6f5aa8', '#c05a7b', '#4f7f45', '#5c7180', '#9b6542'];
@@ -27,6 +32,10 @@ const droneCounts = droneMeta.counts || {};
 const droneStopCount = Number(droneCounts.prohibited || 0) + Number(droneCounts.schedule || 0);
 document.querySelectorAll('[data-drone-overview]').forEach(node => {
   node.innerHTML = `<div class="drone-overview__head"><strong>空拍限制已逐點標註</strong><small>官方資料查核：${escapeHtml(droneMeta.checked || '')}</small></div><p>紅色代表休閒空拍禁止或你們排定時段禁飛；黃色為區域／時段管制；藍色須事前取得許可。所有地點仍須遵守目視飛行、最高 120 公尺、不得飛越群眾、禮讓載人航空器等一般規則。規定與臨時空域可能變更，起飛當日再查 <a href="${escapeHtml(droneMeta.mapUrl || '#')}" target="_blank" rel="noreferrer">Iceland Drone Map</a>。</p><div class="drone-legend"><span class="drone-chip drone-chip--prohibited">禁止／行程時段禁飛 ${droneStopCount}</span><span class="drone-chip drone-chip--restricted">區域／即時管制 ${Number(droneCounts.restricted || 0)}</span><span class="drone-chip drone-chip--permission">需事前同意 ${Number(droneCounts.permission || 0)}</span><span class="drone-chip drone-chip--general">一般規則 ${Number(droneCounts.general || 0)}</span></div>`;
+});
+const catalogMeta = trip.catalogMeta || {};
+document.querySelectorAll('[data-catalog-overview]').forEach(node => {
+  node.innerHTML = `<div><strong>冰島景點總目錄已整合</strong><small>比對日期 ${escapeHtml(catalogMeta.checked || '')}</small></div><p>本次行程有 <b>${Number(catalogMeta.placeCount || 0)}</b> 個停靠站與總目錄直接匹配，共引用 <b>${Number(catalogMeta.sourceCount || 0)}</b> 筆景點資料；每站可快速查看停留時間、攝影預留、停車、廁所、設施與實地建議。</p><a href="${escapeHtml(catalogMeta.databaseUrl || '#')}" target="_blank" rel="noreferrer">開啟 Notion 景點總目錄</a>`;
 });
 $('#stats').innerHTML = [
   {label:'目前已知總支出', value:formatStatMoney(knownTotal), note:'含交通、住宿、門票及寄放'},
@@ -195,7 +204,7 @@ function renderTimeline(filter='全部') {
     if (filter !== '全部' && day.day !== filter) return '';
     const items = day.items;
     if (!items.length) return '';
-    return `<article class="day"><div class="day__label"><strong>${day.day}</strong><span>${day.date}</span><small>${day.city || ''}</small></div><div class="day__items">${items.map(item => `<section class="event"><img class="event__image" src="${item.imageUrl || fallbackImage}" alt="${item.行程 || '行程照片'}" loading="lazy"${fallbackAttr}><time>${item.displayTime || ''}</time><span class="pill ${typeClass(item.性質,item.行程)}">${item.性質 || ''}</span><div><h3>${item.行程 || ''}</h3><p>${item.說明 || ''}</p>${item.冬季狀況 ? `<p><strong>冬季：</strong>${item.冬季狀況}</p>` : ''}${droneInline(item.drone)}</div>${item['Google Map位置'] ? `<a class="map" href="${item['Google Map位置']}" target="_blank" rel="noreferrer">Map</a>` : ''}</section>`).join('')}</div></article>`;
+    return `<article class="day"><div class="day__label"><strong>${day.day}</strong><span>${day.date}</span><small>${day.city || ''}</small></div><div class="day__items">${items.map(item => `<section class="event"><img class="event__image" src="${item.imageUrl || fallbackImage}" alt="${item.行程 || '行程照片'}" loading="lazy"${fallbackAttr}><time>${item.displayTime || ''}</time><span class="pill ${typeClass(item.性質,item.行程)}">${item.性質 || ''}</span><div><h3>${item.行程 || ''}</h3><p>${item.說明 || ''}</p>${item.冬季狀況 ? `<p><strong>冬季：</strong>${item.冬季狀況}</p>` : ''}${catalogInline(item.catalog)}${droneInline(item.drone)}</div>${item['Google Map位置'] ? `<a class="map" href="${item['Google Map位置']}" target="_blank" rel="noreferrer">Map</a>` : ''}</section>`).join('')}</div></article>`;
   }).join('');
 }
 renderTimeline();
@@ -260,13 +269,13 @@ function renderAttractions() {
     const image = item.imageUrl || fallbackImage;
     const mapLink = item.map ? `<a class="map" href="${item.map}" target="_blank" rel="noreferrer">Google Map</a>` : '';
     const pageLink = item.pageUrl ? `<a class="map" href="${item.pageUrl}">開啟景點分頁</a>` : '';
-    reader.innerHTML = `<figure class="spot-photo"><img loading="lazy" src="${image}" alt="${escapeHtml(item.title)}景點照片"${fallbackAttr}></figure><header class="reading-head"><p class="eyebrow">${escapeHtml(item.city || 'Iceland')}</p><h3>${escapeHtml(item.title)}</h3><span>${escapeHtml(item.day || '')} · ${escapeHtml(item.date || '')}</span></header>${droneAlert(item.drone)}<div class="markdown">${item.fullHtml || `<section class="reading-block reading-block--supplement"><h2>補充資訊</h2><p>${escapeHtml(item.description || '')}</p></section>`}</div><div class="reader-actions">${pageLink}${mapLink}</div>`;
+    reader.innerHTML = `<figure class="spot-photo"><img loading="lazy" src="${image}" alt="${escapeHtml(item.title)}景點照片"${fallbackAttr}></figure><header class="reading-head"><p class="eyebrow">${escapeHtml(item.city || 'Iceland')}</p><h3>${escapeHtml(item.title)}</h3><span>${escapeHtml(item.day || '')} · ${escapeHtml(item.date || '')}</span></header>${droneAlert(item.drone)}${catalogAlert(item.catalog)}<div class="markdown">${item.fullHtml || `<section class="reading-block reading-block--supplement"><h2>補充資訊</h2><p>${escapeHtml(item.description || '')}</p></section>`}</div><div class="reader-actions">${pageLink}${mapLink}</div>`;
     grid.querySelectorAll('.spot-card').forEach((card, index) => card.classList.toggle('active', index === activeIndex));
   }
 
   function showAttractions(region) {
     visible = region === '全部' ? trip.attractions : trip.attractions.filter(item => (item.city || '未分類') === region);
-    grid.innerHTML = visible.map((item, index) => `<button class="spot-card${index === 0 ? ' active' : ''}" data-index="${index}"><img loading="lazy" src="${item.imageUrl || fallbackImage}" alt="${escapeHtml(item.title)}縮圖"${fallbackAttr}><span>${escapeHtml(item.city || 'Iceland')}</span><strong>${escapeHtml(item.title)}</strong>${droneMini(item.drone)}<em>閱讀完整介紹</em></button>`).join('');
+    grid.innerHTML = visible.map((item, index) => `<button class="spot-card${index === 0 ? ' active' : ''}" data-index="${index}"><img loading="lazy" src="${item.imageUrl || fallbackImage}" alt="${escapeHtml(item.title)}縮圖"${fallbackAttr}><span>${escapeHtml(item.city || 'Iceland')}</span><strong>${escapeHtml(item.title)}</strong>${catalogMini(item.catalog)}${droneMini(item.drone)}<em>閱讀完整介紹</em></button>`).join('');
     openArticle(visible[0], 0);
   }
 
