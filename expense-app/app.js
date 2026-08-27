@@ -481,7 +481,7 @@
     if (/^\d{4}-\d{2}$/.test(expense.date.slice(0, 7))) calendarMonth = expense.date.slice(0, 7);
     var fee = shouldAddForeignCardFee(expense) ? buildForeignCardFee(expense) : null;
     if (syncMode === "firebase") {
-      saveExpenseToFirebase(expense, existing, fee).then(afterExpenseSaved).catch(function (error) {
+      saveExpenseToFirebase(expense, existing, fee).then(function () { afterExpenseSaved(fee); }).catch(function (error) {
         setSyncStatus((existing ? "修改" : "新增") + "失敗：" + readableError(error));
       });
     } else {
@@ -495,7 +495,7 @@
       }
       syncLocalForeignCardFee(expense, fee);
       saveState();
-      afterExpenseSaved();
+      afterExpenseSaved(fee);
       render();
     }
   }
@@ -588,13 +588,14 @@
     });
   }
 
-  function afterExpenseSaved() {
+  function afterExpenseSaved(fee) {
     editingExpenseId = null;
     elements.expenseForm.reset();
     elements.splitModeEqual.checked = true;
     setExpenseFormMode(false);
     setDefaultDate();
     renderPeopleControls();
+    if (fee) setSyncStatus("已儲存支出，並自動加入 1.5% 國外刷卡手續費。");
   }
 
   function findExpense(id) {

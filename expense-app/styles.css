@@ -1237,8 +1237,13 @@ body {
 
 .brand span,
 .eyebrow,
-.panel-header p { color: var(--rose); }
-.brand strong { color: var(--blue); }
+.panel-header p {
+  color: var(--rose);
+}
+
+.brand strong {
+  color: var(--blue);
+}
 
 .icon-button,
 .secondary-button,
@@ -1265,6 +1270,7 @@ body {
   background: linear-gradient(135deg, #087f91, #4169c8 72%, #7054bd);
   box-shadow: 0 8px 18px rgba(65, 105, 200, 0.24);
 }
+
 .primary-button:hover {
   background: linear-gradient(135deg, #066d7b, #3556aa 72%, #6047a5);
   transform: translateY(-1px);
@@ -1290,6 +1296,7 @@ body {
   overflow: hidden;
   border-top: 4px solid var(--blue);
 }
+
 .metric::after {
   position: absolute;
   right: -24px;
@@ -1300,6 +1307,7 @@ body {
   background: rgba(65, 105, 200, 0.09);
   content: "";
 }
+
 .summary-grid .metric:nth-child(2) { border-top-color: var(--teal); }
 .summary-grid .metric:nth-child(3) { border-top-color: var(--gold); }
 .summary-grid .metric:nth-child(4) { border-top-color: var(--rose); }
@@ -1311,9 +1319,17 @@ body {
 .summary-grid .metric:nth-child(5) strong { color: #7954b6; }
 .summary-grid .metric:nth-child(6) strong { color: #d56733; }
 
-.entry-panel { border-top: 4px solid var(--teal); }
-.people-panel { border-top: 4px solid #8a63c7; }
-.form-grid label { color: #3e5873; }
+.entry-panel {
+  border-top: 4px solid var(--teal);
+}
+
+.people-panel {
+  border-top: 4px solid #8a63c7;
+}
+
+.form-grid label {
+  color: #3e5873;
+}
 
 input,
 select,
@@ -1321,34 +1337,51 @@ select,
   border-color: rgba(65, 105, 200, 0.2);
   background: #fbfdff;
 }
+
 input:hover,
 select:hover,
-.rate-control input:hover { border-color: rgba(8, 143, 135, 0.5); }
+.rate-control input:hover {
+  border-color: rgba(8, 143, 135, 0.5);
+}
 
 .split-box {
   border-color: rgba(8, 143, 135, 0.22);
   background: linear-gradient(135deg, #e7faf5, #eef3ff);
 }
+
 .split-mode {
   border-color: rgba(65, 105, 200, 0.2);
   background: rgba(255, 255, 255, 0.72);
 }
-.split-mode label:has(input:checked) { background: linear-gradient(135deg, var(--teal), var(--blue)); }
+
+.split-mode label:has(input:checked) {
+  background: linear-gradient(135deg, var(--teal), var(--blue));
+}
+
 .check-card {
   border-color: rgba(8, 143, 135, 0.18);
   background: rgba(255,255,255,.86);
 }
+
 .check-card:has(input:checked) {
   border-color: rgba(8, 143, 135, 0.56);
   background: linear-gradient(135deg, #effffb, #f3f5ff);
   box-shadow: 0 6px 16px rgba(8, 143, 135, 0.1);
 }
 
-.ledger-date-group { border-color: rgba(65, 105, 200, 0.17); }
-.ledger-date-head { background: linear-gradient(100deg, #e2f8f3, #eaf0ff 70%, #fff3e8); }
+.ledger-date-group {
+  border-color: rgba(65, 105, 200, 0.17);
+}
+
+.ledger-date-head {
+  background: linear-gradient(100deg, #e2f8f3, #eaf0ff 70%, #fff3e8);
+}
+
 .ledger-date-head strong,
 .calendar-day-amount,
-.calendar-detail-head > strong { color: var(--teal); }
+.calendar-detail-head > strong {
+  color: var(--teal);
+}
 
 .ledger-row,
 .person-row,
@@ -1362,6 +1395,7 @@ select:hover,
   border-color: rgba(65, 105, 200, 0.13);
   background: linear-gradient(135deg, #ffffff, #f8fbff);
 }
+
 .ledger-row:hover,
 .person-row:hover,
 .balance-row:hover,
@@ -1376,14 +1410,38 @@ select:hover,
   color: var(--blue);
   background: linear-gradient(135deg, #e4f8f4, #e9edff);
 }
-.bar-fill { background: linear-gradient(90deg, var(--teal), var(--blue), #8a63c7, var(--rose)); }
-.status-tag { background: #e4f8f4; color: var(--teal); }
+
+.bar-fill {
+  background: linear-gradient(90deg, var(--teal), var(--blue), #8a63c7, var(--rose));
+}
+
+.status-tag {
+  background: #e4f8f4;
+  color: var(--teal);
+}
+
 .calendar-weekdays,
-.calendar-detail-head { background: linear-gradient(100deg, #e2f8f3, #e9edff 65%, #fff0e7); }
-.calendar-day.has-expense { box-shadow: inset 0 3px 0 var(--blue); }
-.calendar-day.is-selected { background: #e4f8f4; box-shadow: inset 0 0 0 3px var(--teal); }
-.calendar-day.is-today { background: #fff0f1; box-shadow: inset 0 0 0 2px rgba(224, 91, 104, 0.48); }
-.calendar-day:hover { background: #edf5ff; }
+.calendar-detail-head {
+  background: linear-gradient(100deg, #e2f8f3, #e9edff 65%, #fff0e7);
+}
+
+.calendar-day.has-expense {
+  box-shadow: inset 0 3px 0 var(--blue);
+}
+
+.calendar-day.is-selected {
+  background: #e4f8f4;
+  box-shadow: inset 0 0 0 3px var(--teal);
+}
+
+.calendar-day.is-today {
+  background: #fff0f1;
+  box-shadow: inset 0 0 0 2px rgba(224, 91, 104, 0.48);
+}
+
+.calendar-day:hover {
+  background: #edf5ff;
+}
 
 @media (max-width: 680px) {
   .app-shell { width: min(100% - 20px, 1320px); }
