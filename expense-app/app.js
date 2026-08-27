@@ -501,31 +501,41 @@
   }
 
   function shouldAddForeignCardFee(expense) {
-    return expense.paymentMethod === "creditCard" && expense.currency !== "TWD" &&
+    return expense.paymentMethod === "creditCard" &&
       !expense.feeForExpenseId && Number(expense.amount) > 0;
   }
 
   function buildForeignCardFee(expense) {
+    var feeAmount = Math.round(Number(expense.amount) * foreignCardFeeRate);
     return normalizeExpense({
       date: expense.date,
       title: (expense.title || "未命名支出") + "（國外刷卡手續費 1.5%）",
       category: "其他",
-      amount: Math.round(Number(expense.amount) * foreignCardFeeRate * 100) / 100,
+      amount: feeAmount,
       currency: expense.currency,
       paidBy: expense.paidBy,
       paymentMethod: "creditCard",
       feeForExpenseId: expense.id,
       splitWith: expense.splitWith,
       splitMode: expense.splitMode,
-      splitShares: expense.splitMode === "custom" ? scaleSplitShares(expense.splitShares, foreignCardFeeRate) : {},
+      splitShares: expense.splitMode === "custom" ? splitForeignCardFee(expense, feeAmount) : {},
       clientCreatedAt: Date.now()
     });
   }
 
-  function scaleSplitShares(shares, rate) {
+  function splitForeignCardFee(expense, feeAmount) {
     var scaled = {};
-    Object.keys(shares || {}).forEach(function (person) {
-      scaled[person] = Math.round(Number(shares[person] || 0) * rate * 100) / 100;
+    var people = expense.splitWith || [];
+    var remaining = feeAmount;
+    people.forEach(function (person, index) {
+      if (index === people.length - 1) {
+        scaled[person] = Math.round(remaining * 100) / 100;
+        return;
+      }
+      var share = Number((expense.splitShares || {})[person] || 0);
+      var amount = Number(expense.amount) || 1;
+      scaled[person] = Math.round((share / amount) * feeAmount * 100) / 100;
+      remaining -= scaled[person];
     });
     return scaled;
   }
