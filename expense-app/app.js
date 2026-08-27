@@ -16,6 +16,7 @@
   var editingExpenseId = null;
   var calendarMonth = null;
   var selectedCalendarDate = null;
+  var foreignCardFeeRate = 0.015;
 
   var money = new Intl.NumberFormat("zh-TW", {
     style: "currency",
@@ -61,7 +62,7 @@
     [
       "syncStatus", "tripCodeForm", "tripCode", "totalSpent", "expenseCount", "averageShare",
       "travelerCount", "settleCount", "eurRate", "usdRate", "iskRate", "expenseForm", "date", "title", "category",
-      "amount", "currency", "paidBy", "splitWith", "splitModeEqual", "splitModeCustom",
+      "amount", "currency", "paidBy", "paymentMethod", "splitWith", "splitModeEqual", "splitModeCustom",
       "splitRemainder", "selectAll", "selectNone", "expenseFormEyebrow", "expenseFormTitle", "expenseSubmit",
       "cancelExpenseEdit", "personForm",
       "personName", "personList", "settlements", "balances", "categories", "ledger",
@@ -416,6 +417,8 @@
       amount: amount,
       currency: currencyCode,
       paidBy: expense.paidBy || "",
+      paymentMethod: expense.paymentMethod === "creditCard" ? "creditCard" : "cash",
+      feeForExpenseId: expense.feeForExpenseId || null,
       splitWith: splitWith,
       splitMode: splitMode,
       splitShares: splitShares,
@@ -467,6 +470,7 @@
       amount: Number(elements.amount.value),
       currency: elements.currency.value,
       paidBy: elements.paidBy.value,
+      paymentMethod: elements.paymentMethod.value,
       splitWith: splitDetails.splitWith,
       splitMode: splitDetails.splitMode,
       splitShares: splitDetails.splitShares,
@@ -475,29 +479,9 @@
       clientCreatedAt: existing ? existing.clientCreatedAt : Date.now()
     });
     if (/^\d{4}-\d{2}$/.test(expense.date.slice(0, 7))) calendarMonth = expense.date.slice(0, 7);
+    var fee = shouldAddForeignCardFee(expense) ? buildForeignCardFee(expense) : null;
     if (syncMode === "firebase") {
-      var payload = {
-        date: expense.date,
-        title: expense.title,
-        category: expense.category,
-        amount: expense.amount,
-        currency: expense.currency,
-        paidBy: expense.paidBy,
-        splitWith: expense.splitWith,
-        splitMode: expense.splitMode,
-        splitShares: expense.splitShares,
-        settlementId: expense.settlementId,
-        clientCreatedAt: expense.clientCreatedAt
-      };
-      var request;
-      if (existing) {
-        payload.updatedAt = window.firebase.firestore.FieldValue.serverTimestamp();
-        request = tripRef().collection("expenses").doc(existing.id).set(payload, { merge: true });
-      } else {
-        payload.createdAt = window.firebase.firestore.FieldValue.serverTimestamp();
-        request = tripRef().collection("expenses").add(payload);
-      }
-      request.then(afterExpenseSaved).catch(function (error) {
+      saveExpenseToFirebase(expense, existing, fee).then(afterExpenseSaved).catch(function (error) {
         setSyncStatus((existing ? "修改" : "新增") + "失敗：" + readableError(error));
       });
     } else {
@@ -509,10 +493,99 @@
         expense.id = "expense-" + Date.now();
         state.expenses.unshift(expense);
       }
+      syncLocalForeignCardFee(expense, fee);
       saveState();
       afterExpenseSaved();
       render();
     }
+  }
+
+  function shouldAddForeignCardFee(expense) {
+    return expense.paymentMethod === "creditCard" && expense.currency !== "TWD" &&
+      !expense.feeForExpenseId && Number(expense.amount) > 0;
+  }
+
+  function buildForeignCardFee(expense) {
+    return normalizeExpense({
+      date: expense.date,
+      title: (expense.title || "未命名支出") + "（國外刷卡手續費 1.5%）",
+      category: "其他",
+      amount: Math.round(Number(expense.amount) * foreignCardFeeRate * 100) / 100,
+      currency: expense.currency,
+      paidBy: expense.paidBy,
+      paymentMethod: "creditCard",
+      feeForExpenseId: expense.id,
+      splitWith: expense.splitWith,
+      splitMode: expense.splitMode,
+      splitShares: expense.splitMode === "custom" ? scaleSplitShares(expense.splitShares, foreignCardFeeRate) : {},
+      clientCreatedAt: Date.now()
+    });
+  }
+
+  function scaleSplitShares(shares, rate) {
+    var scaled = {};
+    Object.keys(shares || {}).forEach(function (person) {
+      scaled[person] = Math.round(Number(shares[person] || 0) * rate * 100) / 100;
+    });
+    return scaled;
+  }
+
+  function syncLocalForeignCardFee(expense, fee) {
+    var linked = state.expenses.filter(function (item) { return item.feeForExpenseId === expense.id; })[0];
+    if (fee) {
+      if (linked) fee.id = linked.id;
+      state.expenses = state.expenses.filter(function (item) { return !linked || item.id !== linked.id; });
+      state.expenses.unshift(fee);
+    } else if (linked) {
+      state.expenses = state.expenses.filter(function (item) { return item.id !== linked.id; });
+    }
+  }
+
+  function firebaseExpensePayload(expense) {
+    return {
+      date: expense.date,
+      title: expense.title,
+      category: expense.category,
+      amount: expense.amount,
+      currency: expense.currency,
+      paidBy: expense.paidBy,
+      paymentMethod: expense.paymentMethod,
+      feeForExpenseId: expense.feeForExpenseId,
+      splitWith: expense.splitWith,
+      splitMode: expense.splitMode,
+      splitShares: expense.splitShares,
+      settlementId: expense.settlementId,
+      clientCreatedAt: expense.clientCreatedAt
+    };
+  }
+
+  function saveExpenseToFirebase(expense, existing, fee) {
+    var collection = tripRef().collection("expenses");
+    var parentRequest;
+    if (existing) {
+      parentRequest = collection.doc(existing.id).set(Object.assign(firebaseExpensePayload(expense), {
+        updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+      }), { merge: true }).then(function () { return collection.doc(existing.id); });
+    } else {
+      parentRequest = collection.add(Object.assign(firebaseExpensePayload(expense), {
+        createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
+      }));
+    }
+    return parentRequest.then(function (parentRef) {
+      var parentId = parentRef.id;
+      var linked = state.expenses.filter(function (item) { return item.feeForExpenseId === parentId; })[0];
+      if (fee) {
+        fee.feeForExpenseId = parentId;
+        fee.id = linked ? linked.id : null;
+        var feePayload = Object.assign(firebaseExpensePayload(fee), {
+          updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return (linked ? collection.doc(linked.id).set(feePayload, { merge: true }) : collection.add(Object.assign(feePayload, {
+          createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
+        }))).then(function () {});
+      }
+      return linked ? collection.doc(linked.id).delete() : Promise.resolve();
+    });
   }
 
   function afterExpenseSaved() {
@@ -566,6 +639,7 @@
     elements.amount.value = expense.amount;
     elements.currency.value = expense.currency;
     elements.paidBy.value = expense.paidBy;
+    elements.paymentMethod.value = expense.paymentMethod || "cash";
     elements.splitModeCustom.checked = expense.splitMode === "custom";
     elements.splitModeEqual.checked = expense.splitMode !== "custom";
     Array.from(elements.splitWith.querySelectorAll(".check-card")).forEach(function (card) {
@@ -1085,11 +1159,11 @@
   }
 
   function exportCsv() {
-    var header = ["date", "title", "category", "amount", "currency", "twd", "paidBy", "splitMode", "splitWith", "splitShares", "status", "settlementId"];
+    var header = ["date", "title", "category", "amount", "currency", "twd", "paidBy", "paymentMethod", "feeForExpenseId", "splitMode", "splitWith", "splitShares", "status", "settlementId"];
     var rows = state.expenses.map(function (expense) {
       return [
         expense.date, expense.title, expense.category, expense.amount, expense.currency,
-        Math.round(expense.twd), expense.paidBy, expense.splitMode, expense.splitWith.join("|"),
+        Math.round(expense.twd), expense.paidBy, expense.paymentMethod, expense.feeForExpenseId || "", expense.splitMode, expense.splitWith.join("|"),
         expense.splitWith.map(function (person) {
           return person + ":" + Number((expense.splitShares || {})[person] || 0);
         }).join("|"),

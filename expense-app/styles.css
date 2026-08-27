@@ -306,6 +306,13 @@ label {
   font-weight: 700;
 }
 
+.field-hint {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
 input,
 select {
   width: 100%;
@@ -1197,4 +1204,192 @@ button.calendar-day:active {
     min-width: 0;
     justify-items: start;
   }
+}
+
+/* Aurora refresh: richer color hierarchy while keeping the ledger easy to scan. */
+:root {
+  --paper: #f4f7fb;
+  --panel: #ffffff;
+  --ink: #182b42;
+  --muted: #64758b;
+  --line: rgba(31, 57, 87, 0.14);
+  --teal: #078f87;
+  --blue: #4169c8;
+  --rose: #e05b68;
+  --gold: #d49a35;
+  --mint: #e3f7f3;
+  --rose-soft: #fff0f1;
+  --shadow: 0 16px 40px rgba(37, 67, 104, 0.1);
+}
+
+body {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(72, 113, 211, 0.16), transparent 29rem),
+    radial-gradient(circle at 96% 20%, rgba(5, 164, 146, 0.14), transparent 28rem),
+    linear-gradient(135deg, #f7fbff 0%, #f3f5fb 52%, #fff8f5 100%);
+}
+
+.app-header {
+  border-bottom-color: rgba(65, 105, 200, 0.18);
+  background: rgba(247, 251, 255, 0.9);
+  box-shadow: 0 4px 24px rgba(37, 67, 104, 0.07);
+}
+
+.brand span,
+.eyebrow,
+.panel-header p { color: var(--rose); }
+.brand strong { color: var(--blue); }
+
+.icon-button,
+.secondary-button,
+.tiny-actions button,
+.person-add button,
+.calendar-nav button,
+.calendar-detail-close {
+  border-color: rgba(65, 105, 200, 0.2);
+  background: linear-gradient(180deg, #ffffff, #f3f7ff);
+}
+
+.icon-button:hover,
+.secondary-button:hover,
+.tiny-actions button:hover,
+.person-add button:hover,
+.calendar-nav button:hover,
+.calendar-detail-close:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  box-shadow: 0 6px 16px rgba(65, 105, 200, 0.14);
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #087f91, #4169c8 72%, #7054bd);
+  box-shadow: 0 8px 18px rgba(65, 105, 200, 0.24);
+}
+.primary-button:hover {
+  background: linear-gradient(135deg, #066d7b, #3556aa 72%, #6047a5);
+  transform: translateY(-1px);
+}
+
+.sync-panel {
+  border-color: rgba(65, 105, 200, 0.2);
+  background: linear-gradient(120deg, rgba(255,255,255,.96), rgba(234,247,255,.94));
+  box-shadow: 0 18px 44px rgba(65, 105, 200, 0.12);
+}
+
+.metric,
+.panel,
+.entry-panel,
+.people-panel,
+.ledger-panel {
+  border-color: rgba(65, 105, 200, 0.16);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.metric {
+  position: relative;
+  overflow: hidden;
+  border-top: 4px solid var(--blue);
+}
+.metric::after {
+  position: absolute;
+  right: -24px;
+  bottom: -34px;
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  background: rgba(65, 105, 200, 0.09);
+  content: "";
+}
+.summary-grid .metric:nth-child(2) { border-top-color: var(--teal); }
+.summary-grid .metric:nth-child(3) { border-top-color: var(--gold); }
+.summary-grid .metric:nth-child(4) { border-top-color: var(--rose); }
+.summary-grid .metric:nth-child(5) { border-top-color: #8a63c7; }
+.summary-grid .metric:nth-child(6) { border-top-color: #e17a3f; }
+.summary-grid .metric:nth-child(2) strong { color: var(--teal); }
+.summary-grid .metric:nth-child(3) strong { color: var(--gold); }
+.summary-grid .metric:nth-child(4) strong { color: var(--rose); }
+.summary-grid .metric:nth-child(5) strong { color: #7954b6; }
+.summary-grid .metric:nth-child(6) strong { color: #d56733; }
+
+.entry-panel { border-top: 4px solid var(--teal); }
+.people-panel { border-top: 4px solid #8a63c7; }
+.form-grid label { color: #3e5873; }
+
+input,
+select,
+.rate-control input {
+  border-color: rgba(65, 105, 200, 0.2);
+  background: #fbfdff;
+}
+input:hover,
+select:hover,
+.rate-control input:hover { border-color: rgba(8, 143, 135, 0.5); }
+
+.split-box {
+  border-color: rgba(8, 143, 135, 0.22);
+  background: linear-gradient(135deg, #e7faf5, #eef3ff);
+}
+.split-mode {
+  border-color: rgba(65, 105, 200, 0.2);
+  background: rgba(255, 255, 255, 0.72);
+}
+.split-mode label:has(input:checked) { background: linear-gradient(135deg, var(--teal), var(--blue)); }
+.check-card {
+  border-color: rgba(8, 143, 135, 0.18);
+  background: rgba(255,255,255,.86);
+}
+.check-card:has(input:checked) {
+  border-color: rgba(8, 143, 135, 0.56);
+  background: linear-gradient(135deg, #effffb, #f3f5ff);
+  box-shadow: 0 6px 16px rgba(8, 143, 135, 0.1);
+}
+
+.ledger-date-group { border-color: rgba(65, 105, 200, 0.17); }
+.ledger-date-head { background: linear-gradient(100deg, #e2f8f3, #eaf0ff 70%, #fff3e8); }
+.ledger-date-head strong,
+.calendar-day-amount,
+.calendar-detail-head > strong { color: var(--teal); }
+
+.ledger-row,
+.person-row,
+.balance-row,
+.settlement-row,
+.category-row,
+.period-card,
+.trip-total-feature,
+.trip-category-row,
+.calendar-detail-row {
+  border-color: rgba(65, 105, 200, 0.13);
+  background: linear-gradient(135deg, #ffffff, #f8fbff);
+}
+.ledger-row:hover,
+.person-row:hover,
+.balance-row:hover,
+.category-row:hover,
+.trip-category-row:hover {
+  border-color: rgba(8, 143, 135, 0.38);
+  box-shadow: 0 8px 20px rgba(37, 67, 104, 0.08);
+}
+
+.category-icon {
+  border-color: rgba(65, 105, 200, 0.2);
+  color: var(--blue);
+  background: linear-gradient(135deg, #e4f8f4, #e9edff);
+}
+.bar-fill { background: linear-gradient(90deg, var(--teal), var(--blue), #8a63c7, var(--rose)); }
+.status-tag { background: #e4f8f4; color: var(--teal); }
+.calendar-weekdays,
+.calendar-detail-head { background: linear-gradient(100deg, #e2f8f3, #e9edff 65%, #fff0e7); }
+.calendar-day.has-expense { box-shadow: inset 0 3px 0 var(--blue); }
+.calendar-day.is-selected { background: #e4f8f4; box-shadow: inset 0 0 0 3px var(--teal); }
+.calendar-day.is-today { background: #fff0f1; box-shadow: inset 0 0 0 2px rgba(224, 91, 104, 0.48); }
+.calendar-day:hover { background: #edf5ff; }
+
+@media (max-width: 680px) {
+  .app-shell { width: min(100% - 20px, 1320px); }
+  .sync-panel,
+  .entry-panel,
+  .people-panel,
+  .panel { border-radius: 14px; }
+  .metric { min-height: 112px; padding: 16px; }
 }
