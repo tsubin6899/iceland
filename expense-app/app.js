@@ -32,7 +32,8 @@
     tripCode: firebaseSettings.tripCode || "ICELAND-2027-AURORA-489",
     people: ["祖斌", "旅伴 2", "旅伴 3", "旅伴 4"],
     expenses: [],
-    periods: []
+    periods: [],
+    settlementPayments: {}
   };
 
   var categoryIcons = {
@@ -108,15 +109,18 @@
 
   function placePeoplePanel() {
     if (!elements.peoplePanel || !elements.expenseForm) return;
-    var workspace = elements.expenseForm.parentElement;
+    var workspace = document.querySelector(".workspace");
     var appShell = document.querySelector(".app-shell");
+    var summaryGrid = document.querySelector(".summary-grid");
     if (mobilePeopleQuery.matches) {
-      if (appShell && elements.peoplePanel.parentElement !== appShell) {
-        appShell.appendChild(elements.peoplePanel);
+      if (appShell && summaryGrid) {
+        appShell.insertBefore(elements.expenseForm, summaryGrid);
+        summaryGrid.insertAdjacentElement("afterend", elements.peoplePanel);
       }
       return;
     }
-    if (workspace && elements.peoplePanel.parentElement !== workspace) {
+    if (workspace) {
+      if (elements.expenseForm.parentElement !== workspace) workspace.appendChild(elements.expenseForm);
       workspace.appendChild(elements.peoplePanel);
     }
   }
@@ -138,7 +142,8 @@
         tripCode: savedCode || parsed.tripCode || defaults.tripCode,
         people: cleanPeople(parsed.people || defaults.people),
         expenses: Array.isArray(parsed.expenses) ? parsed.expenses.map(normalizeExpense) : [],
-        periods: Array.isArray(parsed.periods) ? parsed.periods.map(normalizePeriod) : []
+        periods: Array.isArray(parsed.periods) ? parsed.periods.map(normalizePeriod) : [],
+        settlementPayments: parsed.settlementPayments && typeof parsed.settlementPayments === "object" ? parsed.settlementPayments : {}
       };
     } catch (error) {
       return clone(defaults);
@@ -192,6 +197,7 @@
         state.eurRate = Number(data.eurRate) || state.eurRate;
         state.usdRate = Number(data.usdRate) || state.usdRate;
         state.iskRate = Number(data.iskRate) || state.iskRate;
+        state.settlementPayments = data.settlementPayments && typeof data.settlementPayments === "object" ? data.settlementPayments : {};
       }
       seedBlueLagoonExpense();
       saveState();
@@ -804,7 +810,7 @@
       alert("目前沒有未結支出。");
       return;
     }
-    var transfers = calculateSettlements(expenses);
+    var transfers = calculateSettlements(expenses).map(settlementWithPayment);
     var total = expenses.reduce(sumTwd, 0);
     var title = "結帳 " + new Date().toLocaleDateString("zh-TW");
     if (!confirm("要建立本期結帳嗎？\n未結支出：" + expenses.length + " 筆\n金額：" + currency(total))) return;
@@ -823,6 +829,10 @@
       expenses.forEach(function (expense) {
         batch.set(tripRef().collection("expenses").doc(expense.id), { settlementId: periodRef.id }, { merge: true });
       });
+      batch.set(tripRef().collection("settings").doc("main"), {
+        settlementPayments: {},
+        updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
       batch.commit().catch(function (error) {
         setSyncStatus("建立結帳失敗：" + readableError(error));
       });
@@ -842,6 +852,7 @@
       if (!expense.settlementId && state.periods[0].expenseIds.indexOf(expense.id) >= 0) expense.settlementId = localId;
       return expense;
     });
+    state.settlementPayments = {};
     saveState();
     render();
   }
@@ -971,12 +982,44 @@
     return settlements;
   }
 
+  function settlementKey(item) {
+    return [item.from, item.to, Math.round(Number(item.amount || 0))].join("|");
+  }
+
+  function settlementWithPayment(item) {
+    var payment = state.settlementPayments[settlementKey(item)];
+    return Object.assign({}, item, payment && payment.paid ? { paid: true, paidAt: payment.paidAt || Date.now() } : {});
+  }
+
+  function markSettlementPaid(key) {
+    var item = calculateSettlements(activeExpenses()).filter(function (transfer) {
+      return settlementKey(transfer) === key;
+    })[0];
+    if (!item || state.settlementPayments[key] && state.settlementPayments[key].paid) return;
+    state.settlementPayments[key] = { paid: true, paidAt: Date.now() };
+    saveState();
+    if (syncMode === "firebase") {
+      tripRef().collection("settings").doc("main").set({
+        settlementPayments: state.settlementPayments,
+        updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).catch(function (error) {
+        setSyncStatus("付款狀態同步失敗：" + readableError(error));
+      });
+    }
+    renderSettlements();
+  }
+
   function renderSettlements() {
     var settlements = calculateSettlements(activeExpenses());
     elements.settlements.innerHTML = settlements.length ? settlements.map(function (item) {
+      var paid = state.settlementPayments[settlementKey(item)] && state.settlementPayments[settlementKey(item)].paid;
       return '<div class="settlement-row"><span>' + escapeHtml(item.from) + " 轉給 " +
-        escapeHtml(item.to) + '</span><strong>' + currency(item.amount) + "</strong></div>";
+        escapeHtml(item.to) + '</span><strong>' + currency(item.amount) + '</strong>' +
+        (paid ? '<span class="settlement-paid">已付款</span>' : '<button class="settlement-pay" type="button" data-settlement-key="' + escapeHtml(settlementKey(item)) + '">已付款</button>') + "</div>";
     }).join("") : emptyHtml("目前不用轉帳");
+    Array.from(elements.settlements.querySelectorAll("[data-settlement-key]")).forEach(function (button) {
+      button.addEventListener("click", function () { markSettlementPaid(button.dataset.settlementKey); });
+    });
   }
 
   function renderBalances() {
@@ -1067,7 +1110,8 @@
   function renderPeriods() {
     elements.periods.innerHTML = state.periods.length ? state.periods.map(function (period) {
       var transfers = period.transfers.length ? period.transfers.map(function (item) {
-        return '<li>' + escapeHtml(item.from) + " 轉給 " + escapeHtml(item.to) + " " + currency(item.amount) + "</li>";
+        return '<li>' + escapeHtml(item.from) + " 轉給 " + escapeHtml(item.to) + " " + currency(item.amount) +
+          (item.paid ? ' <span class="settlement-paid">已付款</span>' : ' <span class="settlement-unpaid">待付款</span>') + "</li>";
       }).join("") : "<li>本期沒有需要轉帳</li>";
       return '<article class="period-card"><div><strong>' + escapeHtml(period.title) + '</strong><span>' +
         period.expenseIds.length + " 筆 / " + currency(period.total) + '</span></div><ul>' + transfers + "</ul></article>";
@@ -1249,7 +1293,8 @@
       iskRate: Number(state.iskRate) || defaults.iskRate,
       people: cleanPeople(state.people),
       expenses: state.expenses.map(function (expense) { return clone(expense); }),
-      periods: state.periods.map(function (period) { return clone(period); })
+      periods: state.periods.map(function (period) { return clone(period); }),
+      settlementPayments: clone(state.settlementPayments)
     };
   }
 
@@ -1275,7 +1320,8 @@
       tripCode: safeTripCode(payload.tripCode || state.tripCode || defaults.tripCode),
       people: cleanPeople(payload.people || defaults.people),
       expenses: Array.isArray(payload.expenses) ? payload.expenses.map(normalizeExpense) : [],
-      periods: Array.isArray(payload.periods) ? payload.periods.map(normalizePeriod) : []
+      periods: Array.isArray(payload.periods) ? payload.periods.map(normalizePeriod) : [],
+      settlementPayments: payload.settlementPayments && typeof payload.settlementPayments === "object" ? payload.settlementPayments : {}
     };
     if (!imported.people.length) imported.people = cleanPeople(defaults.people);
     syncPeopleFromImportedExpenses(imported);
@@ -1347,6 +1393,7 @@
         eurRate: imported.eurRate,
         usdRate: imported.usdRate,
         iskRate: imported.iskRate,
+        settlementPayments: imported.settlementPayments || {},
         updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
       imported.expenses.forEach(function (expense) {

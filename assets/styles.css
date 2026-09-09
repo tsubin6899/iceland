@@ -125,3 +125,7 @@ body,p,li,td,th,small,time,span,input,select,textarea,button{font-family:"Noto S
 
 /* On larger screens, the itinerary photo fills its own content row. */
 @media (min-width:621px){.event__image{align-self:stretch!important;width:100%!important;height:100%!important;min-height:0!important;aspect-ratio:auto!important;object-fit:cover!important}}
+
+
+/* Desktop itinerary images: 1.5× wider than the original card layout. */
+@media (min-width:861px){.event{grid-template-columns:174px 52px 78px minmax(0,1fr) auto!important}.event__image{width:174px!important}}

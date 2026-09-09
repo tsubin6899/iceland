@@ -1451,3 +1451,12 @@ select:hover,
   .panel { border-radius: 14px; }
   .metric { min-height: 112px; padding: 16px; }
 }
+
+.settlement-row { flex-wrap: wrap; gap: 8px 10px; }
+.settlement-pay,
+.settlement-paid,
+.settlement-unpaid { border-radius: 999px; padding: 5px 9px; font-size: 0.75rem; font-weight: 800; }
+.settlement-pay { border: 1px solid #2f7d67; background: #e6f5ec; color: #1c6954; cursor: pointer; }
+.settlement-pay:hover { background: #d5efdf; }
+.settlement-paid { background: #dff4e8; color: #176a51; }
+.settlement-unpaid { background: #fff1d8; color: #8b5b13; }
