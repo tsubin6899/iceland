@@ -19,6 +19,12 @@ const catalogAlert = catalog => !catalog ? '' : `<aside class="catalog-alert"><d
 const catalogMini = catalog => !catalog ? '' : `<span class="catalog-mini">總目錄資料已整合</span>`;
 const formatTwd = value => `$${Number(value || 0).toLocaleString('zh-TW', {maximumFractionDigits: 0})}`;
 const formatStatMoney = value => `$${Number(value || 0).toLocaleString('zh-TW', {maximumFractionDigits: 0})}`;
+const paymentStatusClass = (status = '') => {
+  if (status === '已付款') return 'status-chip--paid';
+  if (status === '已預訂未付款') return 'status-chip--booked';
+  if (status === '未預訂未付款') return 'status-chip--planned';
+  return 'status-chip--default';
+};
 const expensePalette = ['#2d6f89', '#b95039', '#287d72', '#bc8330', '#6f5aa8', '#c05a7b', '#4f7f45', '#5c7180', '#9b6542'];
 const participantCount = Number(trip.expenses.participantCount || 1);
 const knownTotal = Number(trip.expenses.personalTotal || 0) * participantCount;
@@ -106,7 +112,7 @@ function renderExpenses() {
   if (statusGrid) {
     statusGrid.innerHTML = (expenses.paymentGroups || []).map(group => `<article class="payment-card"><div class="payment-card__head"><span>${escapeHtml(group.label)}</span><strong>${escapeHtml(group.amountDisplay || formatTwd(group.amount))}</strong><small>每人 ${escapeHtml(group.personalAmountDisplay || formatTwd(group.personalAmount))}</small></div><ul>${(group.items || []).map(item => `<li><b>${escapeHtml(item.category)}</b><span>${escapeHtml(item.amountDisplay || formatTwd(item.amount))}</span><em>${escapeHtml(item.note || item.source || '')}</em></li>`).join('')}</ul></article>`).join('');
   }
-  $('#expenseTable').innerHTML = `<thead><tr><th>類別</th><th>狀態</th><th>金額</th><th>來源</th><th>備註</th></tr></thead><tbody>${expenses.categories.map(item => `<tr><td>${escapeHtml(item.category)}</td><td><span class="status-chip">${escapeHtml(item.status || '')}</span></td><td>${formatTwd(item.amount)}</td><td>${escapeHtml(item.source || '')}</td><td>${escapeHtml(item.note || '')}</td></tr>`).join('')}</tbody>`;
+  $('#expenseTable').innerHTML = `<thead><tr><th>類別</th><th>狀態</th><th>金額</th><th>來源</th><th>備註</th></tr></thead><tbody>${expenses.categories.map(item => `<tr><td>${escapeHtml(item.category)}</td><td><span class="status-chip ${paymentStatusClass(item.status)}">${escapeHtml(item.status || '')}</span></td><td>${formatTwd(item.amount)}</td><td>${escapeHtml(item.source || '')}</td><td>${escapeHtml(item.note || '')}</td></tr>`).join('')}</tbody>`;
   $('#expenseSource').textContent = `資料來源：${(expenses.sources || []).join('、')}。金額以 Notion 個人旅行支出結算欄位為準。`;
 }
 renderExpenses();
@@ -233,9 +239,9 @@ if (location.hash) {
   }
 }
 
-$('#stayGrid').innerHTML = trip.hotels.map(hotel => `<article class="stay"><img class="stay__image" src="${hotel.imageUrl || fallbackImage}" alt="${escapeHtml(hotel.飯店名稱 || '住宿照片')}" loading="lazy"${fallbackAttr}><div class="stay__body"><h3>${escapeHtml(hotel.飯店名稱 || '住宿名稱未填')}</h3><p>${escapeHtml(hotel.城市 || '')}｜${escapeHtml(hotel.入住日期顯示 || '')} ${escapeHtml(hotel.入住時間顯示 || '')} - ${escapeHtml(hotel.退房日期顯示 || '')} ${escapeHtml(hotel.退房時間顯示 || '')}</p><p class="stay__address">${escapeHtml(hotel['住宿地址'] || '')}</p><div class="meta"><span>${escapeHtml(hotel.房型 || '房型未填')}</span><span>${escapeHtml(hotel.訂房平台 || '平台未填')}</span><span>${escapeHtml(hotel.金額顯示 || '')}</span><span>${escapeHtml(hotel['入住人數'] || '')}</span><span>付款：${escapeHtml(hotel['付款／收款'] || (hotel.已付款 === 'Yes' ? '已付款' : '未付款'))}</span></div><p class="stay__rules"><strong>取消／退款：</strong>${escapeHtml(hotel['取消／退款規則'] || hotel.免費取消時間 || '依訂單條款')}</p><p>${escapeHtml(hotel.額外說明 || '')}</p>${hotel['訂單編號'] ? `<p class="stay__booking"><strong>訂單編號：</strong>${escapeHtml(hotel['訂單編號'])}</p>` : ''}${hotel['Google Map位置'] ? `<a class="map" href="${hotel['Google Map位置']}" target="_blank" rel="noreferrer">Google Map</a>` : ''}</div></article>`).join('');
+$('#stayGrid').innerHTML = trip.hotels.map((hotel, index) => `<article class="stay stay--${index % 4}"><div class="stay__image-wrap"><img class="stay__image" src="${hotel.imageUrl || fallbackImage}" alt="${escapeHtml(hotel.飯店名稱 || '住宿照片')}" loading="lazy"${fallbackAttr}><span class="stay__count">住宿 ${String(index + 1).padStart(2, '0')}</span></div><div class="stay__body"><p class="stay__eyebrow">${escapeHtml(hotel.城市 || '冰島住宿安排')}</p><h3>${escapeHtml(hotel.飯店名稱 || '住宿名稱未填')}</h3><div class="stay__dates"><span>入住</span><strong>${escapeHtml(hotel.入住日期顯示 || '')} ${escapeHtml(hotel.入住時間顯示 || '')}</strong><i>→</i><span>退房</span><strong>${escapeHtml(hotel.退房日期顯示 || '')} ${escapeHtml(hotel.退房時間顯示 || '')}</strong></div><p class="stay__address">${escapeHtml(hotel['住宿地址'] || '')}</p><div class="meta"><span>${escapeHtml(hotel.房型 || '房型未填')}</span><span>${escapeHtml(hotel.訂房平台 || '平台未填')}</span><span>${escapeHtml(hotel.金額顯示 || '')}</span><span>${escapeHtml(hotel['入住人數'] || '')}</span><span class="stay__payment">付款：${escapeHtml(hotel['付款／收款'] || (hotel.已付款 === 'Yes' ? '已付款' : '未付款'))}</span></div><div class="stay__details"><p class="stay__rules"><strong>取消／退款</strong>${escapeHtml(hotel['取消／退款規則'] || hotel.免費取消時間 || '依訂單條款')}</p>${hotel.額外說明 ? `<p><strong>補充</strong>${escapeHtml(hotel.額外說明)}</p>` : ''}${hotel['訂單編號'] ? `<p class="stay__booking"><strong>訂單編號</strong>${escapeHtml(hotel['訂單編號'])}</p>` : ''}</div>${hotel['Google Map位置'] ? `<a class="map stay__map" href="${hotel['Google Map位置']}" target="_blank" rel="noreferrer">查看 Google Map <span aria-hidden="true">↗</span></a>` : ''}</div></article>`).join('');
 
-$('#notesList').innerHTML = trip.notes.map(note => `<article><h3>${escapeHtml(note.項目 || '行前提醒')}</h3><p>${emphasizeNote(note.備註內容 || '')}</p></article>`).join('');
+$('#notesList').innerHTML = trip.notes.map((note, index) => `<article class="note-card note-card--${index % 4}"><div class="note-card__head"><span>行前提醒 ${String(index + 1).padStart(2, '0')}</span><i aria-hidden="true"></i></div><h3>${escapeHtml(note.項目 || '行前提醒')}</h3><p>${emphasizeNote(note.備註內容 || '')}</p></article>`).join('');
 
 $('#flightList').innerHTML = trip.flights.map(flight => `<article class="flight"><img class="flight__image" src="${flight.imageUrl || fallbackImage}" alt="${flight.出發機場 || '航班'} 到 ${flight.抵達機場 || '目的地'}" loading="lazy"${fallbackAttr}><div><span class="pill transport">${flight.航空公司}</span><h3>${flight.班機號碼}</h3></div><div class="airport"><span>${flight.出發機場}</span><b>→</b><span>${flight.抵達機場}</span></div><div><strong>${flight.搭乘日期顯示} ${flight.起飛時間顯示}</strong><br><small>抵達 ${flight.抵達日期顯示} ${flight.降落時間顯示}｜行李 ${flight.行李重量 || ''}</small></div></article>`).join('');
 
