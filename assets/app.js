@@ -7,6 +7,26 @@ const emphasizeNote = (value='') => {
 };
 const typeClass = (type, title='') => type === '交通' ? 'transport' : /餐|超市|採買/.test(`${type}${title}`) ? 'food' : '';
 const fallbackAttr = fallbackImage ? ` onerror="this.onerror=null;this.src='${fallbackImage}'"` : '';
+const flightMoment = (dateValue, timeValue) => {
+  const date = String(dateValue || '').match(/\d{4}-\d{2}-\d{2}/)?.[0];
+  const time = String(timeValue || '').match(/\d{1,2}:\d{2}/)?.[0];
+  if (!date || !time) return NaN;
+  return new Date(`${date}T${time.padStart(5, '0')}:00`).getTime();
+};
+const formatFlightDuration = (milliseconds) => {
+  const minutes = Math.round(milliseconds / 60000);
+  const hours = Math.floor(minutes / 60);
+  return hours ? `${hours} 小時 ${minutes % 60} 分` : `${minutes} 分`;
+};
+const transferAfter = (flight, nextFlight) => {
+  if (!nextFlight) return '';
+  const arrival = flightMoment(flight.抵達日期, flight.降落時間);
+  const departure = flightMoment(nextFlight.搭乘日期, nextFlight.起飛時間);
+  const duration = departure - arrival;
+  if (!Number.isFinite(duration) || duration < 0 || duration > 36 * 60 * 60 * 1000) return '';
+  const airport = flight.抵達機場 || nextFlight.出發機場 || '轉機地';
+  return `<aside class="flight-transfer"><span aria-hidden="true">↳</span><div><small>${escapeHtml(airport)}</small><strong>轉機／停留 ${formatFlightDuration(duration)}</strong></div></aside>`;
+};
 const droneLevel = value => ['prohibited','schedule','restricted','permission','general'].includes(value) ? value : 'general';
 const droneSource = drone => drone && drone.sourceUrl ? `<a href="${escapeHtml(drone.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(drone.sourceLabel || '官方規定')}</a>` : '';
 const droneInline = drone => !drone ? '' : `<aside class="drone-inline drone-inline--${droneLevel(drone.level)}"><div class="drone-inline__head"><span>空拍限制</span><strong>${escapeHtml(drone.label || '請確認')}</strong></div><p>${escapeHtml(drone.summary || '')}</p>${droneSource(drone)}</aside>`;
@@ -243,7 +263,7 @@ $('#stayGrid').innerHTML = trip.hotels.map((hotel, index) => `<article class="st
 
 $('#notesList').innerHTML = trip.notes.map((note, index) => `<article class="note-card note-card--${index % 4}"><div class="note-card__head"><span>行前提醒 ${String(index + 1).padStart(2, '0')}</span><i aria-hidden="true"></i></div><h3>${escapeHtml(note.項目 || '行前提醒')}</h3><p>${emphasizeNote(note.備註內容 || '')}</p></article>`).join('');
 
-$('#flightList').innerHTML = trip.flights.map(flight => `<article class="flight"><img class="flight__image" src="${flight.imageUrl || fallbackImage}" alt="${flight.出發機場 || '航班'} 到 ${flight.抵達機場 || '目的地'}" loading="lazy"${fallbackAttr}><div><span class="pill transport">${flight.航空公司}</span><h3>${flight.班機號碼}</h3></div><div class="airport"><span>${flight.出發機場}</span><b>→</b><span>${flight.抵達機場}</span></div><div><strong>${flight.搭乘日期顯示} ${flight.起飛時間顯示}</strong><br><small>抵達 ${flight.抵達日期顯示} ${flight.降落時間顯示}｜行李 ${flight.行李重量 || ''}</small></div></article>`).join('');
+$('#flightList').innerHTML = trip.flights.map((flight, index) => `<div class="flight-leg flight-leg--${index % 4}"><article class="flight"><div class="flight__image-wrap"><img class="flight__image" src="${flight.imageUrl || fallbackImage}" alt="${flight.出發機場 || '航班'} 到 ${flight.抵達機場 || '目的地'}" loading="lazy"${fallbackAttr}><span>航段 ${String(index + 1).padStart(2, '0')}</span></div><div class="flight__info"><div class="flight__head"><span class="pill transport">${escapeHtml(flight.航空公司 || '航空公司')}</span><strong>${escapeHtml(flight.班機號碼 || '')}</strong></div><div class="flight__route"><div><small>出發</small><b>${escapeHtml(flight.出發機場 || '')}</b><time>${escapeHtml(flight.搭乘日期顯示 || '')} ${escapeHtml(flight.起飛時間顯示 || '')}</time></div><i aria-hidden="true">✈</i><div><small>抵達</small><b>${escapeHtml(flight.抵達機場 || '')}</b><time>${escapeHtml(flight.抵達日期顯示 || '')} ${escapeHtml(flight.降落時間顯示 || '')}</time></div></div><div class="flight__meta"><span>行李 ${escapeHtml(flight.行李重量 || '依訂單')}</span><span>${escapeHtml(flight.已付款顯示 || '') ? `付款：${escapeHtml(flight.已付款顯示)}` : ''}</span><span>${escapeHtml(flight.已預訂顯示 || '') ? `預訂：${escapeHtml(flight.已預訂顯示)}` : ''}</span></div></div></article>${transferAfter(flight, trip.flights[index + 1])}</div>`).join('');
 
 function renderAttractions() {
   const filter = $('#spotFilter');
