@@ -244,6 +244,7 @@
       state.periods = snapshot.docs.map(function (doc) {
         return normalizePeriod(Object.assign({ id: doc.id }, doc.data()));
       }).sort(function (a, b) { return periodTime(b) - periodTime(a); });
+      applyKnownPaidPeriods();
       saveState();
       renderPeriods();
     }, function (error) {
@@ -1015,6 +1016,34 @@
     return Object.assign({}, item, payment && payment.paid ? { paid: true, paidAt: payment.paidAt || Date.now() } : {});
   }
 
+  function applyKnownPaidPeriods() {
+    var confirmedTitles = { "結帳 2026/8/18": true };
+    state.periods = state.periods.map(function (period) {
+      if (!confirmedTitles[period.title] || !period.transfers.some(function (item) { return !item.paid; })) return period;
+      var updated = Object.assign({}, period, {
+        transfers: period.transfers.map(function (item) {
+          return Object.assign({}, item, { paid: true, paidAt: item.paidAt || Date.now() });
+        })
+      });
+      if (syncMode === "firebase") {
+        tripRef().collection("settlementPeriods").doc(updated.id).set({ transfers: updated.transfers }, { merge: true });
+      }
+      return updated;
+    });
+  }
+
+  function markPeriodTransferPaid(periodId, transferIndex) {
+    var period = state.periods.filter(function (item) { return item.id === periodId; })[0];
+    if (!period || !period.transfers[transferIndex] || period.transfers[transferIndex].paid) return;
+    period.transfers[transferIndex] = Object.assign({}, period.transfers[transferIndex], { paid: true, paidAt: Date.now() });
+    saveState();
+    if (syncMode === "firebase") {
+      tripRef().collection("settlementPeriods").doc(period.id).set({ transfers: period.transfers }, { merge: true })
+        .catch(function (error) { setSyncStatus("歷史結帳付款狀態同步失敗：" + readableError(error)); });
+    }
+    renderPeriods();
+  }
+
   function markSettlementPaid(key) {
     var item = calculateSettlements(activeExpenses()).filter(function (transfer) {
       return settlementKey(transfer) === key;
@@ -1133,13 +1162,16 @@
 
   function renderPeriods() {
     elements.periods.innerHTML = state.periods.length ? state.periods.map(function (period) {
-      var transfers = period.transfers.length ? period.transfers.map(function (item) {
+      var transfers = period.transfers.length ? period.transfers.map(function (item, index) {
         return '<li>' + escapeHtml(item.from) + " 轉給 " + escapeHtml(item.to) + " " + currency(item.amount) +
-          (item.paid ? ' <span class="settlement-paid">已付款</span>' : ' <span class="settlement-unpaid">待付款</span>') + "</li>";
+          (item.paid ? ' <span class="settlement-paid">已完成付款</span>' : ' <button class="period-pay" type="button" data-period-id="' + escapeHtml(period.id) + '" data-transfer-index="' + index + '">標記已付款</button>') + "</li>";
       }).join("") : "<li>本期沒有需要轉帳</li>";
       return '<article class="period-card"><div><strong>' + escapeHtml(period.title) + '</strong><span>' +
         period.expenseIds.length + " 筆 / " + currency(period.total) + '</span></div><ul>' + transfers + "</ul></article>";
     }).join("") : emptyHtml("尚未建立結帳批次");
+    Array.from(elements.periods.querySelectorAll("[data-period-id]")).forEach(function (button) {
+      button.addEventListener("click", function () { markPeriodTransferPaid(button.dataset.periodId, Number(button.dataset.transferIndex)); });
+    });
   }
 
   function renderTripTotals() {
