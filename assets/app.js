@@ -240,7 +240,8 @@ function renderRouteMap() {
     return;
   }
   const places = trip.attractions.filter(item => Array.isArray(item.coordinates) && item.coordinates.length === 2);
-  if (!places.length) {
+  const stays = trip.hotels.filter(item => Array.isArray(item.coordinates) && item.coordinates.length === 2);
+  if (!places.length && !stays.length) {
     if (note) note.textContent = '目前沒有可定位的行程景點。';
     return;
   }
@@ -264,9 +265,21 @@ function renderRouteMap() {
     bounds.push(coords);
     route.push(coords);
   });
+  stays.forEach((stay, index) => {
+    const coords = stay.coordinates;
+    const marker = L.marker(coords, {icon: L.divIcon({
+      className: 'stay-map-marker',
+      html: `<span>⌂</span><small>${index + 1}</small>`,
+      iconSize: [30, 34],
+      iconAnchor: [15, 30],
+      popupAnchor: [0, -27]
+    })}).addTo(routeMapInstance);
+    marker.bindPopup(`<div class="map-popup map-popup--stay"><small>住宿 ${String(index + 1).padStart(2, '0')} · ${escapeHtml(stay.city || 'Iceland')}</small><strong>${escapeHtml(stay.飯店名稱 || '住宿安排')}</strong><span>${escapeHtml(stay.入住日期顯示 || '')} 入住 · ${escapeHtml(stay.退房日期顯示 || '')} 退房</span><a href="#stays">查看住宿安排 →</a></div>`);
+    bounds.push(coords);
+  });
   L.polyline(route, {color:'#287d72', weight:2, opacity:.45, dashArray:'5 7'}).addTo(routeMapInstance);
   routeMapInstance.fitBounds(bounds, {padding:[30, 30], maxZoom:8});
-  if (note) note.textContent = `已標示 ${places.length} 處本次行程景點；地圖資料 © OpenStreetMap contributors。`;
+  if (note) note.textContent = `已標示 ${places.length} 處景點與 ${stays.length} 處住宿；圓點為景點、床鋪標記為住宿。地圖資料 © OpenStreetMap contributors。`;
 }
 renderRouteMap();
 
