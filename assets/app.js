@@ -48,22 +48,13 @@ $('#stats').innerHTML = [
 
 function barChart(items, options={}) {
   const rows = items.filter(item => Number(item.amount || 0) > 0);
-  const width = 560;
-  const rowHeight = 48;
-  const top = 18;
-  const labelWidth = 96;
-  const amountWidth = 104;
-  const chartWidth = width - labelWidth - amountWidth - 26;
-  const height = Math.max(120, top * 2 + rows.length * rowHeight);
   const max = Math.max(...rows.map(item => Number(item.amount || 0)), 1);
   const bars = rows.map((item, index) => {
-    const y = top + index * rowHeight;
-    const barWidth = Math.max(4, Math.round(Number(item.amount || 0) / max * chartWidth));
+    const share = Math.max(4, Number(item.amount || 0) / max * 100);
     const pct = trip.expenses.total ? `${Math.round(Number(item.amount || 0) / trip.expenses.total * 100)}%` : '';
-    const color = expensePalette[index % expensePalette.length];
-    return `<g><text x="0" y="${y + 22}" font-size="13">${escapeHtml(item.category)}</text><line class="expense-grid-line" x1="${labelWidth}" y1="${y + 16}" x2="${labelWidth + chartWidth}" y2="${y + 16}"></line><rect class="expense-bar ${options.personal ? 'personal' : ''}" x="${labelWidth}" y="${y + 5}" width="${barWidth}" height="22" fill="${color}"></rect><text class="muted" x="${labelWidth + barWidth + 8}" y="${y + 21}">${formatTwd(item.amount)}${options.percent ? ` · ${pct}` : ''}</text></g>`;
+    return `<article class="budget-bar budget-bar--${index % expensePalette.length}" style="--bar-size:${share.toFixed(2)}%"><div class="budget-bar__head"><span title="${escapeHtml(item.category)}">${escapeHtml(item.category)}</span><strong>${formatTwd(item.amount)}${options.percent ? `<small>${pct}</small>` : ''}</strong></div><div class="budget-bar__track"><i></i></div></article>`;
   }).join('');
-  return `<svg class="expense-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(options.label || '支出圖表')}">${bars}</svg>`;
+  return `<div class="budget-bars" role="img" aria-label="${escapeHtml(options.label || '支出圖表')}">${bars}</div>`;
 }
 
 function pieSlice(cx, cy, radius, startAngle, endAngle) {
