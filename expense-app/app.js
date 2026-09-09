@@ -30,7 +30,7 @@
     usdRate: 32.0,
     iskRate: 0.23,
     tripCode: firebaseSettings.tripCode || "ICELAND-2027-AURORA-489",
-    people: ["祖斌", "旅伴 2", "旅伴 3", "旅伴 4"],
+    people: ["阿斌", "旅伴 2", "旅伴 3", "旅伴 4"],
     expenses: [],
     periods: [],
     settlementPayments: {}
@@ -193,7 +193,12 @@
       isRemoteUpdate = true;
       if (doc.exists) {
         var data = doc.data() || {};
-        if (Array.isArray(data.people) && data.people.length) state.people = cleanPeople(data.people);
+        if (Array.isArray(data.people) && data.people.length) {
+          state.people = cleanPeople(data.people);
+          if (JSON.stringify(data.people) !== JSON.stringify(state.people)) {
+            root.collection("settings").doc("main").set({ people: state.people }, { merge: true });
+          }
+        }
         state.eurRate = Number(data.eurRate) || state.eurRate;
         state.usdRate = Number(data.usdRate) || state.usdRate;
         state.iskRate = Number(data.iskRate) || state.iskRate;
@@ -213,6 +218,18 @@
       state.expenses = snapshot.docs.map(function (doc) {
         return normalizeExpense(Object.assign({ id: doc.id }, doc.data()));
       }).sort(function (a, b) { return expenseTime(b) - expenseTime(a); });
+      snapshot.docs.forEach(function (doc) {
+        var raw = doc.data() || {};
+        var normalized = normalizeExpense(Object.assign({ id: doc.id }, raw));
+        var rawSplit = Array.isArray(raw.splitWith) ? raw.splitWith : [];
+        if (raw.paidBy !== normalized.paidBy || JSON.stringify(rawSplit) !== JSON.stringify(normalized.splitWith)) {
+          doc.ref.set({
+            paidBy: normalized.paidBy,
+            splitWith: normalized.splitWith,
+            splitShares: normalized.splitShares
+          }, { merge: true });
+        }
+      });
       seedBlueLagoonExpense();
       syncPeopleFromExpenses();
       saveState();
@@ -262,7 +279,7 @@
       category: "門票",
       amount: 25088,
       currency: "TWD",
-      paidBy: "祖斌",
+      paidBy: "阿斌",
       paymentMethod: "cash",
       splitWith: people,
       splitMode: "equal",
@@ -278,7 +295,7 @@
       category: "手續費",
       amount: 376,
       currency: "TWD",
-      paidBy: "祖斌",
+      paidBy: "阿斌",
       paymentMethod: "cash",
       splitWith: people,
       splitMode: "equal",
@@ -319,10 +336,15 @@
     return Number(amount);
   }
 
+  function canonicalPerson(name) {
+    var cleaned = String(name || "").trim();
+    return cleaned === "祖斌" ? "阿斌" : cleaned;
+  }
+
   function cleanPeople(people) {
     var seen = {};
     return (Array.isArray(people) ? people : []).map(function (name) {
-      return String(name || "").trim();
+      return canonicalPerson(name);
     }).filter(function (name) {
       if (!name || seen[name]) return false;
       seen[name] = true;
@@ -333,9 +355,11 @@
   function normalizeSplitShares(shares, splitWith) {
     var normalized = {};
     if (!shares || typeof shares !== "object") return normalized;
-    splitWith.forEach(function (person) {
+    Object.keys(shares).forEach(function (person) {
+      var canonical = canonicalPerson(person);
+      if (splitWith.indexOf(canonical) < 0) return;
       var value = Number(shares[person] || 0);
-      if (value > 0) normalized[person] = value;
+      if (value > 0) normalized[canonical] = Number(normalized[canonical] || 0) + value;
     });
     return normalized;
   }
@@ -457,7 +481,7 @@
   function normalizeExpense(expense) {
     var amount = Number(expense.amount || 0);
     var currencyCode = expense.currency || "TWD";
-    var splitWith = Array.isArray(expense.splitWith) ? expense.splitWith : [];
+    var splitWith = cleanPeople(Array.isArray(expense.splitWith) ? expense.splitWith : []);
     var splitMode = expense.splitMode === "custom" ? "custom" : "equal";
     var splitShares = normalizeSplitShares(expense.splitShares, splitWith);
     return {
@@ -467,7 +491,7 @@
       category: expense.category || "其他",
       amount: amount,
       currency: currencyCode,
-      paidBy: expense.paidBy || "",
+      paidBy: canonicalPerson(expense.paidBy),
       paymentMethod: expense.paymentMethod === "creditCard" ? "creditCard" : "cash",
       feeForExpenseId: expense.feeForExpenseId || null,
       planKey: expense.planKey || null,
@@ -720,7 +744,7 @@
 
   function addPerson(event) {
     event.preventDefault();
-    var name = elements.personName.value.trim();
+    var name = canonicalPerson(elements.personName.value);
     if (!name || state.people.indexOf(name) >= 0) return;
     state.people = cleanPeople(state.people.concat(name));
     elements.personName.value = "";
