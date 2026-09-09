@@ -103,7 +103,7 @@ function renderExpenses() {
   const summary = $('#expenseSummary');
   if (!summary || !expenses.categories) return;
   summary.innerHTML = [
-    ['目前已花費', '$0', 'liveExpenseTotal'],
+    ['分帳已付款', '$0', 'liveExpenseTotal'],
     ['個人結算合計', expenses.personalTotalDisplay],
     ['已付款/人', expenses.paidPersonalTotalDisplay],
     ['已預訂未付款/人', expenses.bookedUnpaidPersonalTotalDisplay],
@@ -141,7 +141,7 @@ function renderLiveExpenseTotal(expenses, rates, sourceLabel) {
   const totalNode = $('#liveExpenseTotal');
   const countNode = $('#liveExpenseCount');
   if (totalNode) totalNode.textContent = formatTwd(total);
-  if (countNode) countNode.textContent = `目前已花費 · ${rows.length} 筆 · ${sourceLabel}`;
+  if (countNode) countNode.textContent = `已付款帳本 · ${rows.length} 筆 · ${sourceLabel}`;
 }
 
 function readLocalExpenseBook() {

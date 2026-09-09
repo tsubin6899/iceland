@@ -17,6 +17,7 @@
   var calendarMonth = null;
   var selectedCalendarDate = null;
   var foreignCardFeeRate = 0.015;
+  var blueLagoonSeedAttempted = false;
 
   var money = new Intl.NumberFormat("zh-TW", {
     style: "currency",
@@ -192,6 +193,7 @@
         state.usdRate = Number(data.usdRate) || state.usdRate;
         state.iskRate = Number(data.iskRate) || state.iskRate;
       }
+      seedBlueLagoonExpense();
       saveState();
       render();
       isRemoteUpdate = false;
@@ -205,6 +207,7 @@
       state.expenses = snapshot.docs.map(function (doc) {
         return normalizeExpense(Object.assign({ id: doc.id }, doc.data()));
       }).sort(function (a, b) { return expenseTime(b) - expenseTime(a); });
+      seedBlueLagoonExpense();
       syncPeopleFromExpenses();
       saveState();
       render();
@@ -238,6 +241,48 @@
 
   function tripRef() {
     return db.collection("tripExpenseBooks").doc(safeTripCode(state.tripCode));
+  }
+
+  function seedBlueLagoonExpense() {
+    if (blueLagoonSeedAttempted || syncMode !== "firebase" || state.people.length !== 6) return;
+    blueLagoonSeedAttempted = true;
+    if (state.expenses.some(function (expense) { return expense.planKey === "blue-lagoon-2027"; })) return;
+    var people = state.people.slice();
+    var collection = tripRef().collection("expenses");
+    var timestamp = window.firebase.firestore.FieldValue.serverTimestamp();
+    collection.doc("blue-lagoon-ticket-2027").set({
+      date: "2026-09-09",
+      title: "The Blue Lagoon 藍湖溫泉｜Comfort admission（95,940 ISK）",
+      category: "門票",
+      amount: 25088,
+      currency: "TWD",
+      paidBy: "祖斌",
+      paymentMethod: "cash",
+      splitWith: people,
+      splitMode: "equal",
+      splitShares: {},
+      settlementId: null,
+      planKey: "blue-lagoon-2027",
+      clientCreatedAt: 1788931200000,
+      createdAt: timestamp
+    }, { merge: true });
+    collection.doc("blue-lagoon-fee-2027").set({
+      date: "2026-09-09",
+      title: "The Blue Lagoon 藍湖溫泉｜國外刷卡手續費",
+      category: "手續費",
+      amount: 376,
+      currency: "TWD",
+      paidBy: "祖斌",
+      paymentMethod: "cash",
+      splitWith: people,
+      splitMode: "equal",
+      splitShares: {},
+      settlementId: null,
+      feeForExpenseId: "blue-lagoon-ticket-2027",
+      planKey: "blue-lagoon-2027",
+      clientCreatedAt: 1788931200001,
+      createdAt: timestamp
+    }, { merge: true });
   }
 
   function safeTripCode(code) {
@@ -419,6 +464,7 @@
       paidBy: expense.paidBy || "",
       paymentMethod: expense.paymentMethod === "creditCard" ? "creditCard" : "cash",
       feeForExpenseId: expense.feeForExpenseId || null,
+      planKey: expense.planKey || null,
       splitWith: splitWith,
       splitMode: splitMode,
       splitShares: splitShares,
@@ -561,6 +607,7 @@
       paidBy: expense.paidBy,
       paymentMethod: expense.paymentMethod,
       feeForExpenseId: expense.feeForExpenseId,
+      planKey: expense.planKey || null,
       splitWith: expense.splitWith,
       splitMode: expense.splitMode,
       splitShares: expense.splitShares,
