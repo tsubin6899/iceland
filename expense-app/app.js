@@ -1015,7 +1015,7 @@
       var paid = state.settlementPayments[settlementKey(item)] && state.settlementPayments[settlementKey(item)].paid;
       return '<div class="settlement-row"><span>' + escapeHtml(item.from) + " 轉給 " +
         escapeHtml(item.to) + '</span><strong>' + currency(item.amount) + '</strong>' +
-        (paid ? '<span class="settlement-paid">已付款</span>' : '<button class="settlement-pay" type="button" data-settlement-key="' + escapeHtml(settlementKey(item)) + '">已付款</button>') + "</div>";
+        (paid ? '<span class="settlement-paid">已完成付款</span>' : '<button class="settlement-pay" type="button" data-settlement-key="' + escapeHtml(settlementKey(item)) + '">標記已付款</button>') + "</div>";
     }).join("") : emptyHtml("目前不用轉帳");
     Array.from(elements.settlements.querySelectorAll("[data-settlement-key]")).forEach(function (button) {
       button.addEventListener("click", function () { markSettlementPaid(button.dataset.settlementKey); });
