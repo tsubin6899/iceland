@@ -231,6 +231,45 @@ document.querySelectorAll('#dayFilters button').forEach(button => button.addEven
   renderTimeline(button.dataset.filter);
 }));
 
+let routeMapInstance = null;
+function renderRouteMap() {
+  const node = $('#routeMap');
+  const note = $('#routeMapNote');
+  if (!node || routeMapInstance || !window.L) {
+    if (note && !window.L) note.textContent = '地圖元件目前無法載入，請確認網路連線後再試。';
+    return;
+  }
+  const places = trip.attractions.filter(item => Array.isArray(item.coordinates) && item.coordinates.length === 2);
+  if (!places.length) {
+    if (note) note.textContent = '目前沒有可定位的行程景點。';
+    return;
+  }
+  routeMapInstance = L.map(node, {scrollWheelZoom: false, zoomControl: true}).setView([64.85, -19.2], 6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(routeMapInstance);
+  const bounds = [];
+  const route = [];
+  places.forEach((place, index) => {
+    const coords = place.coordinates;
+    const marker = L.circleMarker(coords, {
+      radius: 8,
+      color: '#fffdf8',
+      weight: 2,
+      fillColor: ['#287d72', '#bc8330', '#6f5aa8', '#b95039'][index % 4],
+      fillOpacity: 1
+    }).addTo(routeMapInstance);
+    marker.bindPopup(`<div class="map-popup"><small>${escapeHtml(place.day || '行程景點')} · ${escapeHtml(place.city || 'Iceland')}</small><strong>${escapeHtml(place.title)}</strong><a href="${escapeHtml(place.pageUrl)}">閱讀景點介紹 →</a></div>`);
+    bounds.push(coords);
+    route.push(coords);
+  });
+  L.polyline(route, {color:'#287d72', weight:2, opacity:.45, dashArray:'5 7'}).addTo(routeMapInstance);
+  routeMapInstance.fitBounds(bounds, {padding:[30, 30], maxZoom:8});
+  if (note) note.textContent = `已標示 ${places.length} 處本次行程景點；地圖資料 © OpenStreetMap contributors。`;
+}
+renderRouteMap();
+
 const tabLinks = document.querySelectorAll('.topbar a[data-tab]');
 const pageTabs = document.querySelectorAll('.page-tab[data-tab]');
 const tabPanels = document.querySelectorAll('.tab-panel');
@@ -244,6 +283,7 @@ function showTab(id, updateHash=true) {
     tab.setAttribute('aria-selected', String(active));
   });
   if (updateHash) history.replaceState(null, '', `#${target.id}`);
+  if (target.id === 'map' && routeMapInstance) window.setTimeout(() => routeMapInstance.invalidateSize(), 80);
   const pager = document.getElementById('section-pager');
   (pager || target).scrollIntoView({behavior: 'smooth', block: 'start'});
 }
