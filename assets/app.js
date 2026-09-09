@@ -42,7 +42,7 @@ $('#stats').innerHTML = [
   {label:'已付款', value:formatStatMoney(paidTotal), note:paidPercent, tone:'paid'},
   {label:'待付款', value:formatStatMoney(pendingTotal), note:`每人約 ${formatStatMoney(pendingPersonal)}`, tone:'due'},
   {label:'每人目前費用', value:formatStatMoney(trip.expenses.personalTotal), note:`平均每日約 ${formatStatMoney(dailyPersonal)}`},
-  {label:'已購門票', value:'0 項', note:'共 2 張入場票'},
+  {label:'已購門票', value:`${trip.expenses.purchasedTicketQuantity || 0} 張`, note:'藍湖｜2/12 09:00｜Comfort admission'},
   {label:'內容手冊', value:`${trip.summary.attractionCount} 景點`, note:''}
 ].map(item => `<article class="stat${item.tone ? ` stat--${item.tone}` : ''}"><span>${item.label}</span><strong>${item.value}</strong>${item.note ? `<small>${item.note}</small>` : ''}</article>`).join('');
 
@@ -204,7 +204,7 @@ function renderTimeline(filter='全部') {
     if (filter !== '全部' && day.day !== filter) return '';
     const items = day.items;
     if (!items.length) return '';
-    return `<article class="day"><div class="day__label"><strong>${day.day}</strong><span>${day.date}</span><small>${day.city || ''}</small></div><div class="day__items">${items.map(item => `<section class="event"><img class="event__image" src="${item.imageUrl || fallbackImage}" alt="${item.行程 || '行程照片'}" loading="lazy"${fallbackAttr}><time>${item.displayTime || ''}</time><span class="pill ${typeClass(item.性質,item.行程)}">${item.性質 || ''}</span><div><h3>${item.行程 || ''}</h3><p>${item.說明 || ''}</p>${item.冬季狀況 ? `<p><strong>冬季：</strong>${item.冬季狀況}</p>` : ''}${catalogInline(item.catalog)}${droneInline(item.drone)}</div>${item['Google Map位置'] ? `<a class="map" href="${item['Google Map位置']}" target="_blank" rel="noreferrer">Map</a>` : ''}</section>`).join('')}</div></article>`;
+    return `<article class="day"><div class="day__label"><strong>${day.day}</strong><span>${day.date}</span><small>${day.city || ''}</small></div><div class="day__items">${items.map(item => `<section class="event"><img class="event__image" src="${item.imageUrl || fallbackImage}" alt="${item.displayTitle || item.行程 || '行程照片'}" loading="lazy"${fallbackAttr}><time>${item.displayTime || ''}</time><span class="pill ${typeClass(item.性質,item.行程)}">${item.性質 || ''}</span><div><h3>${item.displayTitle || item.行程 || ''}</h3><p>${item.說明 || ''}</p>${item.冬季狀況 ? `<p><strong>冬季：</strong>${item.冬季狀況}</p>` : ''}${catalogInline(item.catalog)}${droneInline(item.drone)}</div>${item['Google Map位置'] ? `<a class="map" href="${item['Google Map位置']}" target="_blank" rel="noreferrer">Map</a>` : ''}</section>`).join('')}</div></article>`;
   }).join('');
 }
 renderTimeline();
