@@ -128,7 +128,7 @@ body,p,li,td,th,small,time,span,input,select,textarea,button{font-family:"Noto S
 
 
 /* Desktop itinerary images: 1.5× wider than the original card layout. */
-@media (min-width:861px){.event{grid-template-columns:174px 52px 78px minmax(0,1fr) auto!important}.event__image{width:174px!important}}
+@media (min-width:861px){.event{grid-template-columns:261px 52px 78px minmax(0,1fr) auto!important}.event__image{width:261px!important}}
 
 
 /* Interactive route map */
