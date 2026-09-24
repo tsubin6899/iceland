@@ -68,7 +68,7 @@ $('#stats').innerHTML = [
   {label:'已付款', value:formatStatMoney(paidTotal), note:paidPercent, tone:'paid'},
   {label:'待付款', value:formatStatMoney(pendingTotal), note:`每人約 ${formatStatMoney(pendingPersonal)}`, tone:'due'},
   {label:'每人目前費用', value:formatStatMoney(trip.expenses.personalTotal), note:`平均每日約 ${formatStatMoney(dailyPersonal)}`},
-  {label:'已購門票', value:`${trip.expenses.purchasedTicketQuantity || 0} 張`, note:'藍冰洞｜2/7 09:30・藍湖｜2/12 09:00'},
+  {label:'已購門票', value:`${trip.expenses.purchasedTicketQuantity || 0} 張`, note:'藍冰洞・Reykjaböð・藍湖｜各 6 位'},
   {label:'內容手冊', value:`${trip.summary.attractionCount} 景點`, note:''}
 ].map(item => `<article class="stat${item.tone ? ` stat--${item.tone}` : ''}"><span>${item.label}</span><strong>${item.value}</strong>${item.note ? `<small>${item.note}</small>` : ''}</article>`).join('');
 
