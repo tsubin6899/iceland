@@ -18,6 +18,7 @@
   var selectedCalendarDate = null;
   var foreignCardFeeRate = 0.015;
   var blueLagoonSeedAttempted = false;
+  var blueIceCaveSeedAttempted = false;
 
   var money = new Intl.NumberFormat("zh-TW", {
     style: "currency",
@@ -205,6 +206,7 @@
         state.settlementPayments = data.settlementPayments && typeof data.settlementPayments === "object" ? data.settlementPayments : {};
       }
       seedBlueLagoonExpense();
+      seedBlueIceCaveExpense();
       saveState();
       render();
       isRemoteUpdate = false;
@@ -231,6 +233,7 @@
         }
       });
       seedBlueLagoonExpense();
+      seedBlueIceCaveExpense();
       syncPeopleFromExpenses();
       saveState();
       render();
@@ -305,6 +308,31 @@
       feeForExpenseId: "blue-lagoon-ticket-2027",
       planKey: "blue-lagoon-2027",
       clientCreatedAt: 1788931200001,
+      createdAt: timestamp
+    }, { merge: true });
+  }
+
+  function seedBlueIceCaveExpense() {
+    if (blueIceCaveSeedAttempted || syncMode !== "firebase" || state.people.length !== 6) return;
+    blueIceCaveSeedAttempted = true;
+    if (state.expenses.some(function (expense) { return expense.planKey === "blue-ice-cave-2027"; })) return;
+    var people = state.people.slice();
+    var collection = tripRef().collection("expenses");
+    var timestamp = window.firebase.firestore.FieldValue.serverTimestamp();
+    collection.doc("blue-ice-cave-ticket-2027").set({
+      date: "2026-09-24",
+      title: "Blue Ice Cave Adventure｜6 位｜訂位 GAD-104774364",
+      category: "門票",
+      amount: 52757,
+      currency: "TWD",
+      paidBy: "阿簡",
+      paymentMethod: "cash",
+      splitWith: people,
+      splitMode: "equal",
+      splitShares: {},
+      settlementId: null,
+      planKey: "blue-ice-cave-2027",
+      clientCreatedAt: 1790221800000,
       createdAt: timestamp
     }, { merge: true });
   }
