@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>冰島之旅旅行記帳與分帳</title>
     <meta name="description" content="2027 冰島之旅即時記帳、多人分帳與分期結帳工具">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=59">
   </head>
   <body>
     <header class="app-header">
@@ -211,14 +211,14 @@
         <header class="panel-header">
           <div>
             <p>Close Period</p>
-            <h2>中途結帳</h2>
+            <h2>結帳與轉帳紀錄</h2>
           </div>
           <button class="primary-button" id="closePeriod" type="button">建立本期結帳</button>
         </header>
         <div class="period-grid">
           <div>
-            <h3>適合每兩天結一次</h3>
-            <p>每次結帳會把目前未結支出歸成一個批次，之後新的帳目會從零開始累計。歷史批次保留轉帳建議，方便當場核對。</p>
+            <h3>依日期查看付款與結帳</h3>
+            <p>同一天的轉帳合併顯示，點選日期可展開明細。最近一天與有未付款的日期預設展開；建立本期結帳後，未結支出會歸入批次，方便核對。</p>
           </div>
           <div class="period-list" id="periods"></div>
         </div>
@@ -289,7 +289,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
     <script src="firebase-config.js"></script>
-    <script src="app.js?v=58"></script>
+    <script src="app.js?v=59"></script>
     <script>
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('../sw.js', { updateViaCache: 'none' })

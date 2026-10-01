@@ -15,6 +15,8 @@
   var lastCloudSnapshotAt = 0;
   var editingExpenseId = null;
   var pendingSettlementKeys = {};
+  var periodOpenDates = {};
+  var periodVisibleLimit = 5;
   var calendarMonth = null;
   var selectedCalendarDate = null;
   var foreignCardFeeRate = 0.015;
@@ -783,6 +785,8 @@
 
   function changeTripCode(event) {
     event.preventDefault();
+    periodOpenDates = {};
+    periodVisibleLimit = 5;
     state.tripCode = safeTripCode(elements.tripCode.value);
     elements.tripCode.value = state.tripCode;
     saveState();
@@ -1177,6 +1181,25 @@
     return parts[0] + "/" + parts[1] + "/" + parts[2] + "（週" + weekdays[date.getDay()] + "）";
   }
 
+  function periodDate(period) {
+    var titleDate = /(?:^|\s)(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:$|\s)/.exec(period.title);
+    if (titleDate) return titleDate[1] + "-" + titleDate[2].padStart(2, "0") + "-" + titleDate[3].padStart(2, "0");
+    var time = periodTime(period);
+    if (!time) return "未記錄日期";
+    var parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(time));
+    function part(type) { return parts.filter(function (item) { return item.type === type; })[0].value; }
+    return part("year") + "-" + part("month") + "-" + part("day");
+  }
+
+  function periodTransferTable(rows) {
+    if (!rows.length) return '<p class="history-empty">本期沒有需要轉帳</p>';
+    return '<div class="history-table-wrap"><table class="history-table"><thead><tr><th>付款人</th><th>收款人</th><th>金額</th><th>狀態</th></tr></thead><tbody>' + rows.map(function (row) {
+      var item = row.transfer;
+      return '<tr><td>' + escapeHtml(item.from) + '</td><td>' + escapeHtml(item.to) + '</td><td class="history-amount">' + currency(item.amount) + '</td><td>' +
+        (item.paid ? '<span class="settlement-paid">已付款</span>' : '<button class="period-pay" type="button" data-period-id="' + escapeHtml(row.period.id) + '" data-transfer-index="' + row.index + '">標記已付款</button>') + '</td></tr>';
+    }).join("") + '</tbody></table></div>';
+  }
+
   function renderPeriods() {
     var periods = state.periods.slice();
     recordedSettlementPayments().forEach(function (payment) {
@@ -1184,16 +1207,43 @@
       if (!periods.some(function (period) { return period.id === history.id; })) periods.push(history);
     });
     periods.sort(function (a, b) { return periodTime(b) - periodTime(a); });
-    elements.periods.innerHTML = periods.length ? periods.map(function (period) {
-      var transfers = period.transfers.length ? period.transfers.map(function (item, index) {
-        return '<li>' + escapeHtml(item.from) + " 轉給 " + escapeHtml(item.to) + " " + currency(item.amount) +
-          (item.paid ? ' <span class="settlement-paid">已完成付款</span>' : ' <button class="period-pay" type="button" data-period-id="' + escapeHtml(period.id) + '" data-transfer-index="' + index + '">標記已付款</button>') + "</li>";
-      }).join("") : "<li>本期沒有需要轉帳</li>";
-      return '<article class="period-card"><div><strong>' + escapeHtml(period.title) + '</strong><span>' +
-        (period.kind === "payment" ? "已完成轉帳" : period.expenseIds.length + " 筆 / " + currency(period.total)) + '</span></div><ul>' + transfers + "</ul></article>";
-    }).join("") : emptyHtml("尚未建立結帳批次");
+    var groups = {};
+    periods.forEach(function (period) {
+      var date = periodDate(period);
+      if (!groups[date]) groups[date] = { periods: [], rows: [], unpaid: 0, total: 0 };
+      var group = groups[date];
+      group.periods.push(period);
+      period.transfers.forEach(function (transfer, index) {
+        group.rows.push({ period: period, transfer: transfer, index: index });
+        group.total += Number(transfer.amount || 0);
+        if (!transfer.paid) group.unpaid++;
+      });
+    });
+    var dates = Object.keys(groups).sort().reverse();
+    var visibleDates = dates.filter(function (date, index) { return index < periodVisibleLimit || groups[date].unpaid > 0; });
+    elements.periods.innerHTML = visibleDates.map(function (date) {
+      var group = groups[date];
+      var isOpen = Object.prototype.hasOwnProperty.call(periodOpenDates, date) ? periodOpenDates[date] : date === dates[0] || group.unpaid > 0;
+      var payments = group.rows.filter(function (row) { return row.period.kind === "payment"; });
+      var batches = group.periods.filter(function (period) { return period.kind !== "payment"; });
+      var content = payments.length ? '<section class="history-section"><h4>轉帳紀錄 <small>' + payments.length + ' 筆・轉帳合計 ' + currency(payments.reduce(function (sum, row) { return sum + Number(row.transfer.amount || 0); }, 0)) + '</small></h4>' + periodTransferTable(payments) + '</section>' : "";
+      content += batches.map(function (period) {
+        var rows = group.rows.filter(function (row) { return row.period.id === period.id; });
+        return '<section class="history-section"><h4>本期結帳 <small>' + period.expenseIds.length + ' 筆支出・支出總額 ' + currency(period.total) + '</small></h4>' + periodTransferTable(rows) + '</section>';
+      }).join("");
+      var status = group.unpaid ? '尚有 ' + group.unpaid + ' 筆未付款' : group.rows.length ? '全部已付款' : '無需轉帳';
+      return '<details class="period-date-group" data-history-date="' + escapeHtml(date) + '"' + (isOpen ? ' open' : '') + '><summary><span class="history-date">' + escapeHtml(date.replace(/-/g, "/")) + '</span><span class="history-meta">' + group.rows.length + ' 筆轉帳・轉帳合計 ' + currency(group.total) + '</span><span class="history-status' + (group.unpaid ? ' is-unpaid' : '') + '">' + status + '</span></summary><div class="history-content">' + content + '</div></details>';
+    }).join("") || emptyHtml("尚無結帳或轉帳紀錄");
+    var hiddenCount = dates.length - visibleDates.length;
+    if (hiddenCount > 0) elements.periods.innerHTML += '<button class="history-more" type="button" data-history-more>顯示更多（還有 ' + hiddenCount + ' 個日期）</button>';
     Array.from(elements.periods.querySelectorAll("[data-period-id]")).forEach(function (button) {
       button.addEventListener("click", function () { markPeriodTransferPaid(button.dataset.periodId, Number(button.dataset.transferIndex)); });
+    });
+    Array.from(elements.periods.querySelectorAll("[data-history-date]")).forEach(function (details) {
+      details.addEventListener("toggle", function () { periodOpenDates[details.dataset.historyDate] = details.open; });
+    });
+    Array.from(elements.periods.querySelectorAll("[data-history-more]")).forEach(function (button) {
+      button.addEventListener("click", function () { periodVisibleLimit += 5; renderPeriods(); });
     });
   }
 
