@@ -197,7 +197,7 @@ function startLiveExpenseSync() {
       update();
     });
     root.collection('expenses').onSnapshot(snapshot => {
-      cloudExpenses = snapshot.docs.map(doc => doc.data() || {});
+      cloudExpenses = snapshot.docs.map(doc => doc.data() || {}).filter(expense => expense.deleted !== true);
       update();
     });
   } catch (error) {

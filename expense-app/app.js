@@ -213,12 +213,13 @@
     unsubscribeExpenses = root.collection("expenses").onSnapshot({ includeMetadataChanges: true }, function (snapshot) {
       isRemoteUpdate = true;
       if (!snapshot.metadata.fromCache) lastCloudSnapshotAt = Date.now();
-      state.expenses = snapshot.docs.map(function (doc) {
-        return normalizeExpense(Object.assign({ id: doc.id }, doc.data()));
+      state.expenses = snapshot.docs.filter(function (doc) { return doc.data().deleted !== true; }).map(function (doc) {
+        return normalizeExpense(Object.assign({}, doc.data(), { id: doc.id }));
       }).sort(function (a, b) { return expenseTime(b) - expenseTime(a); });
       snapshot.docs.forEach(function (doc) {
         var raw = doc.data() || {};
-        var normalized = normalizeExpense(Object.assign({ id: doc.id }, raw));
+        if (raw.deleted === true) return;
+        var normalized = normalizeExpense(Object.assign({}, raw, { id: doc.id }));
         var rawSplit = Array.isArray(raw.splitWith) ? raw.splitWith : [];
         if (raw.paidBy !== normalized.paidBy || JSON.stringify(rawSplit) !== JSON.stringify(normalized.splitWith)) {
           doc.ref.set({
@@ -239,7 +240,7 @@
 
     unsubscribePeriods = root.collection("settlementPeriods").onSnapshot({ includeMetadataChanges: true }, function (snapshot) {
       state.periods = snapshot.docs.map(function (doc) {
-        return normalizePeriod(Object.assign({ id: doc.id }, doc.data()));
+        return normalizePeriod(Object.assign({}, doc.data(), { id: doc.id }));
       }).sort(function (a, b) { return periodTime(b) - periodTime(a); });
       applyKnownPaidPeriods();
       saveState();
@@ -748,7 +749,10 @@
     if (!confirm(message)) return;
     if (editingExpenseId === id) cancelExpenseEdit();
     if (syncMode === "firebase") {
-      tripRef().collection("expenses").doc(id).delete().catch(function (error) {
+      tripRef().collection("expenses").doc(id).set({
+        deleted: true,
+        deletedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).catch(function (error) {
         setSyncStatus("刪除失敗：" + readableError(error));
       });
       return;
