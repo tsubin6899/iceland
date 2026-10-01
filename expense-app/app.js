@@ -14,6 +14,7 @@
   var isRemoteUpdate = false;
   var lastCloudSnapshotAt = 0;
   var editingExpenseId = null;
+  var pendingSettlementKeys = {};
   var calendarMonth = null;
   var selectedCalendarDate = null;
   var foreignCardFeeRate = 0.015;
@@ -466,6 +467,7 @@
     return {
       id: period.id || "period-" + Date.now(),
       title: period.title || "",
+      kind: period.kind || "period",
       expenseIds: Array.isArray(period.expenseIds) ? period.expenseIds : [],
       transfers: Array.isArray(period.transfers) ? period.transfers : [],
       total: Number(period.total || 0),
@@ -794,7 +796,10 @@
       alert("目前沒有未結支出。");
       return;
     }
-    var transfers = calculateSettlements(expenses).map(settlementWithPayment);
+    var transfers = calculateSettlements(expenses);
+    var missingPaymentHistory = recordedSettlementPayments().map(paymentHistory).filter(function (history) {
+      return !state.periods.some(function (period) { return period.id === history.id; });
+    });
     var total = expenses.reduce(sumTwd, 0);
     var title = "結帳 " + new Date().toLocaleDateString("zh-TW");
     if (!confirm("要建立本期結帳嗎？\n未結支出：" + expenses.length + " 筆\n金額：" + currency(total))) return;
@@ -802,6 +807,9 @@
     if (syncMode === "firebase") {
       var periodRef = tripRef().collection("settlementPeriods").doc();
       var batch = db.batch();
+      missingPaymentHistory.forEach(function (history) {
+        batch.set(tripRef().collection("settlementPeriods").doc(history.id), history);
+      });
       batch.set(periodRef, {
         title: title,
         expenseIds: expenses.map(function (expense) { return expense.id; }),
@@ -823,6 +831,7 @@
       return;
     }
 
+    state.periods = missingPaymentHistory.concat(state.periods);
     var localId = "period-" + Date.now();
     state.periods.unshift(normalizePeriod({
       id: localId,
@@ -938,6 +947,12 @@
     Object.keys(balances).forEach(function (person) {
       balances[person].net = balances[person].paid - balances[person].share;
     });
+    recordedSettlementPayments().forEach(function (payment) {
+      if (!balances[payment.from]) balances[payment.from] = { paid: 0, share: 0, net: 0 };
+      if (!balances[payment.to]) balances[payment.to] = { paid: 0, share: 0, net: 0 };
+      balances[payment.from].net += payment.amount;
+      balances[payment.to].net -= payment.amount;
+    });
     return balances;
   }
 
@@ -1003,31 +1018,74 @@
     renderPeriods();
   }
 
+  function recordedSettlementPayments() {
+    return Object.keys(state.settlementPayments).map(function (key) {
+      var payment = state.settlementPayments[key] || {};
+      var parts = key.split("|");
+      return {
+        id: key,
+        from: canonicalPerson(payment.from || parts[0]),
+        to: canonicalPerson(payment.to || parts[1]),
+        amount: Number(payment.amount || parts[2] || 0),
+        paid: payment.paid === true,
+        paidAt: Number(payment.paidAt || 0)
+      };
+    }).filter(function (payment) {
+      return payment.paid && payment.from && payment.to && payment.amount > 0;
+    });
+  }
+
+  function paymentHistory(payment) {
+    return normalizePeriod({
+      id: "payment-" + encodeURIComponent(payment.id),
+      kind: "payment",
+      title: "轉帳 " + new Date(payment.paidAt).toLocaleDateString("zh-TW"),
+      transfers: [{ from: payment.from, to: payment.to, amount: payment.amount, paid: true, paidAt: payment.paidAt }],
+      expenseIds: [],
+      total: 0,
+      clientCreatedAt: payment.paidAt
+    });
+  }
+
   function markSettlementPaid(key) {
+    if (pendingSettlementKeys[key]) return;
     var item = calculateSettlements(activeExpenses()).filter(function (transfer) {
       return settlementKey(transfer) === key;
     })[0];
-    if (!item || state.settlementPayments[key] && state.settlementPayments[key].paid) return;
-    state.settlementPayments[key] = { paid: true, paidAt: Date.now() };
-    saveState();
+    if (!item) return;
+    var id = "transfer-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
+    var payment = Object.assign({}, item, { id: id, paid: true, paidAt: Date.now() });
+    var history = paymentHistory(payment);
     if (syncMode === "firebase") {
-      tripRef().collection("settings").doc("main").set({
-        settlementPayments: state.settlementPayments,
+      pendingSettlementKeys[key] = true;
+      var batch = db.batch();
+      var payments = {};
+      payments[id] = payment;
+      batch.set(tripRef().collection("settings").doc("main"), {
+        settlementPayments: payments,
         updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true }).catch(function (error) {
-        setSyncStatus("付款狀態同步失敗：" + readableError(error));
+      }, { merge: true });
+      batch.set(tripRef().collection("settlementPeriods").doc(history.id), history);
+      batch.commit().then(function () {
+        delete pendingSettlementKeys[key];
+      }).catch(function (error) {
+        delete pendingSettlementKeys[key];
+        setSyncStatus("付款紀錄同步失敗：" + readableError(error));
       });
+      return;
     }
-    renderSettlements();
+    state.settlementPayments[id] = payment;
+    state.periods.unshift(history);
+    saveState();
+    render();
   }
 
   function renderSettlements() {
     var settlements = calculateSettlements(activeExpenses());
     elements.settlements.innerHTML = settlements.length ? settlements.map(function (item) {
-      var paid = state.settlementPayments[settlementKey(item)] && state.settlementPayments[settlementKey(item)].paid;
       return '<div class="settlement-row"><span>' + escapeHtml(item.from) + " 轉給 " +
         escapeHtml(item.to) + '</span><strong>' + currency(item.amount) + '</strong>' +
-        (paid ? '<span class="settlement-paid">已完成付款</span>' : '<button class="settlement-pay" type="button" data-settlement-key="' + escapeHtml(settlementKey(item)) + '">標記已付款</button>') + "</div>";
+        ('<button class="settlement-pay" type="button" data-settlement-key="' + escapeHtml(settlementKey(item)) + '">標記已付款</button>') + "</div>";
     }).join("") : emptyHtml("目前不用轉帳");
     Array.from(elements.settlements.querySelectorAll("[data-settlement-key]")).forEach(function (button) {
       button.addEventListener("click", function () { markSettlementPaid(button.dataset.settlementKey); });
@@ -1120,13 +1178,19 @@
   }
 
   function renderPeriods() {
-    elements.periods.innerHTML = state.periods.length ? state.periods.map(function (period) {
+    var periods = state.periods.slice();
+    recordedSettlementPayments().forEach(function (payment) {
+      var history = paymentHistory(payment);
+      if (!periods.some(function (period) { return period.id === history.id; })) periods.push(history);
+    });
+    periods.sort(function (a, b) { return periodTime(b) - periodTime(a); });
+    elements.periods.innerHTML = periods.length ? periods.map(function (period) {
       var transfers = period.transfers.length ? period.transfers.map(function (item, index) {
         return '<li>' + escapeHtml(item.from) + " 轉給 " + escapeHtml(item.to) + " " + currency(item.amount) +
           (item.paid ? ' <span class="settlement-paid">已完成付款</span>' : ' <button class="period-pay" type="button" data-period-id="' + escapeHtml(period.id) + '" data-transfer-index="' + index + '">標記已付款</button>') + "</li>";
       }).join("") : "<li>本期沒有需要轉帳</li>";
       return '<article class="period-card"><div><strong>' + escapeHtml(period.title) + '</strong><span>' +
-        period.expenseIds.length + " 筆 / " + currency(period.total) + '</span></div><ul>' + transfers + "</ul></article>";
+        (period.kind === "payment" ? "已完成轉帳" : period.expenseIds.length + " 筆 / " + currency(period.total)) + '</span></div><ul>' + transfers + "</ul></article>";
     }).join("") : emptyHtml("尚未建立結帳批次");
     Array.from(elements.periods.querySelectorAll("[data-period-id]")).forEach(function (button) {
       button.addEventListener("click", function () { markPeriodTransferPaid(button.dataset.periodId, Number(button.dataset.transferIndex)); });
