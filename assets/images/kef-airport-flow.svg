@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="590" viewBox="0 0 1000 590" role="img" aria-labelledby="title desc">
+<title id="title">KEF 機場入境與離境流程</title><desc id="desc">入境：護照查驗、免稅與領行李、海關、取車接駁。離境：還車到機場、退稅查驗、報到托運、安檢與登機。實際動線依航線及機場指示。</desc>
+<rect width="1000" height="590" rx="24" fill="#eef5f8"/>
+<g font-family="Microsoft JhengHei,Noto Sans TC,sans-serif">
+<text x="44" y="58" font-size="29" fill="#17313a" font-weight="700">KEF 機場・一眼看懂出入境</text>
+<text x="44" y="91" font-size="17" fill="#58717a">流程示意｜不是航廈平面圖｜實際動線依現場指示</text>
+<text x="44" y="149" font-size="22" fill="#287d72" font-weight="700">抵達冰島 ARRIVAL</text>
+<g fill="#fff" stroke="#badbd4" stroke-width="2"><rect x="44" y="169" width="207" height="111" rx="13"/><rect x="279" y="169" width="207" height="111" rx="13"/><rect x="514" y="169" width="207" height="111" rx="13"/><rect x="749" y="169" width="207" height="111" rx="13"/></g>
+<g fill="#17313a" font-size="22" text-anchor="middle"><text x="148" y="211">護照查驗</text><text x="382" y="211">免稅／領行李</text><text x="618" y="211">海關申報</text><text x="852" y="211">取車／接駁</text></g>
+<g fill="#58717a" font-size="16" text-anchor="middle"><text x="148" y="247">依申根／非申根航線</text><text x="382" y="247">確認行李轉盤</text><text x="618" y="247">申報需求與免稅額</text><text x="852" y="247">核對訂單集合點</text></g>
+<g fill="#287d72" font-size="26"><text x="255" y="230">›</text><text x="490" y="230">›</text><text x="725" y="230">›</text></g>
+<text x="44" y="339" font-size="22" fill="#9b691f" font-weight="700">離開冰島 DEPARTURE</text>
+<g fill="#fff" stroke="#e4d3af" stroke-width="2"><rect x="44" y="359" width="207" height="111" rx="13"/><rect x="279" y="359" width="207" height="111" rx="13" fill="#fff3d9"/><rect x="514" y="359" width="207" height="111" rx="13"/><rect x="749" y="359" width="207" height="111" rx="13"/></g>
+<g fill="#17313a" font-size="22" text-anchor="middle"><text x="148" y="401">還車／抵達</text><text x="382" y="401">退稅查驗</text><text x="618" y="401">報到／托運</text><text x="852" y="401">安檢／登機</text></g>
+<g fill="#58717a" font-size="16" text-anchor="middle"><text x="148" y="437">另留還車接駁時間</text><text x="382" y="437">商品與單據先備妥</text><text x="618" y="437">依航空公司截止時間</text><text x="852" y="437">必要時護照查驗</text></g>
+<g fill="#9b691f" font-size="26"><text x="255" y="420">›</text><text x="490" y="420">›</text><text x="725" y="420">›</text></g>
+<rect x="44" y="498" width="912" height="54" rx="11" fill="#17313a"/>
+<text x="500" y="532" font-size="22" fill="#fff" text-anchor="middle">重要：有退稅需求，先完成查驗，再托運行李</text>
+</g></svg>
