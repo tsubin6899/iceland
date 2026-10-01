@@ -17,9 +17,6 @@
   var calendarMonth = null;
   var selectedCalendarDate = null;
   var foreignCardFeeRate = 0.015;
-  var blueLagoonSeedAttempted = false;
-  var blueIceCaveSeedAttempted = false;
-  var reykjabodSeedAttempted = false;
 
   var money = new Intl.NumberFormat("zh-TW", {
     style: "currency",
@@ -206,9 +203,6 @@
         state.iskRate = Number(data.iskRate) || state.iskRate;
         state.settlementPayments = data.settlementPayments && typeof data.settlementPayments === "object" ? data.settlementPayments : {};
       }
-      seedBlueLagoonExpense();
-      seedBlueIceCaveExpense();
-      seedReykjabodExpense();
       saveState();
       render();
       isRemoteUpdate = false;
@@ -234,9 +228,6 @@
           }, { merge: true });
         }
       });
-      seedBlueLagoonExpense();
-      seedBlueIceCaveExpense();
-      seedReykjabodExpense();
       syncPeopleFromExpenses();
       saveState();
       render();
@@ -271,115 +262,6 @@
 
   function tripRef() {
     return db.collection("tripExpenseBooks").doc(safeTripCode(state.tripCode));
-  }
-
-  function seedBlueLagoonExpense() {
-    if (blueLagoonSeedAttempted || syncMode !== "firebase" || state.people.length !== 6) return;
-    blueLagoonSeedAttempted = true;
-    if (state.expenses.some(function (expense) { return expense.planKey === "blue-lagoon-2027"; })) return;
-    var people = state.people.slice();
-    var collection = tripRef().collection("expenses");
-    var timestamp = window.firebase.firestore.FieldValue.serverTimestamp();
-    collection.doc("blue-lagoon-ticket-2027").set({
-      date: "2026-09-09",
-      title: "The Blue Lagoon 藍湖溫泉｜Comfort admission（95,940 ISK）",
-      category: "門票",
-      amount: 25088,
-      currency: "TWD",
-      paidBy: "阿斌",
-      paymentMethod: "cash",
-      splitWith: people,
-      splitMode: "equal",
-      splitShares: {},
-      settlementId: null,
-      planKey: "blue-lagoon-2027",
-      clientCreatedAt: 1788931200000,
-      createdAt: timestamp
-    }, { merge: true });
-    collection.doc("blue-lagoon-fee-2027").set({
-      date: "2026-09-09",
-      title: "The Blue Lagoon 藍湖溫泉｜國外刷卡手續費",
-      category: "手續費",
-      amount: 376,
-      currency: "TWD",
-      paidBy: "阿斌",
-      paymentMethod: "cash",
-      splitWith: people,
-      splitMode: "equal",
-      splitShares: {},
-      settlementId: null,
-      feeForExpenseId: "blue-lagoon-ticket-2027",
-      planKey: "blue-lagoon-2027",
-      clientCreatedAt: 1788931200001,
-      createdAt: timestamp
-    }, { merge: true });
-  }
-
-  function seedBlueIceCaveExpense() {
-    if (blueIceCaveSeedAttempted || syncMode !== "firebase" || state.people.length !== 6) return;
-    blueIceCaveSeedAttempted = true;
-    if (state.expenses.some(function (expense) { return expense.planKey === "blue-ice-cave-2027"; })) return;
-    var people = state.people.slice();
-    var collection = tripRef().collection("expenses");
-    var timestamp = window.firebase.firestore.FieldValue.serverTimestamp();
-    collection.doc("blue-ice-cave-ticket-2027").set({
-      date: "2026-09-24",
-      title: "Blue Ice Cave Adventure｜6 位｜訂位 GAD-104774364",
-      category: "門票",
-      amount: 52757,
-      currency: "TWD",
-      paidBy: "阿簡",
-      paymentMethod: "cash",
-      splitWith: people,
-      splitMode: "equal",
-      splitShares: {},
-      settlementId: null,
-      planKey: "blue-ice-cave-2027",
-      clientCreatedAt: 1790221800000,
-      createdAt: timestamp
-    }, { merge: true });
-  }
-
-  function seedReykjabodExpense() {
-    if (reykjabodSeedAttempted || syncMode !== "firebase" || state.people.length !== 6) return;
-    reykjabodSeedAttempted = true;
-    if (state.expenses.some(function (expense) { return expense.planKey === "reykjabod-2027"; })) return;
-    var people = state.people.slice();
-    var collection = tripRef().collection("expenses");
-    var timestamp = window.firebase.firestore.FieldValue.serverTimestamp();
-    collection.doc("reykjabod-ticket-2027").set({
-      date: "2026-09-21",
-      title: "Reykjaböð Hot Springs｜6 位｜訂位 RBW00003789（53,400 ISK）",
-      category: "門票",
-      amount: 14008,
-      currency: "TWD",
-      paidBy: "阿斌",
-      paymentMethod: "cash",
-      splitWith: people,
-      splitMode: "equal",
-      splitShares: {},
-      settlementId: null,
-      planKey: "reykjabod-2027",
-      clientCreatedAt: 1790006400000,
-      createdAt: timestamp
-    }, { merge: true });
-    collection.doc("reykjabod-fee-2027").set({
-      date: "2026-09-21",
-      title: "Reykjaböð Hot Springs｜國外刷卡手續費（1.5%）",
-      category: "手續費",
-      amount: 210,
-      currency: "TWD",
-      paidBy: "阿斌",
-      paymentMethod: "cash",
-      splitWith: people,
-      splitMode: "equal",
-      splitShares: {},
-      settlementId: null,
-      feeForExpenseId: "reykjabod-ticket-2027",
-      planKey: "reykjabod-2027",
-      clientCreatedAt: 1790006400001,
-      createdAt: timestamp
-    }, { merge: true });
   }
 
   function safeTripCode(code) {
