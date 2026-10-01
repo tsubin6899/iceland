@@ -275,7 +275,7 @@ function renderRouteMap() {
       iconAnchor: [15, 30],
       popupAnchor: [0, -27]
     })}).addTo(routeMapInstance);
-    marker.bindPopup(`<div class="map-popup map-popup--stay"><small>住宿 ${String(index + 1).padStart(2, '0')} · ${escapeHtml(stay.city || 'Iceland')}</small><strong>${escapeHtml(stay.飯店名稱 || '住宿安排')}</strong><span>${escapeHtml(stay.入住日期顯示 || '')} 入住 · ${escapeHtml(stay.退房日期顯示 || '')} 退房</span><a href="#stays">查看住宿安排 →</a></div>`);
+    marker.bindPopup(`<div class="map-popup map-popup--stay"><small>住宿 ${String(index + 1).padStart(2, '0')} · ${escapeHtml(stay.城市 || 'Iceland')}</small><strong>${escapeHtml(stay.飯店名稱 || '住宿安排')}</strong><span>${escapeHtml(stay.入住日期顯示 || '')} 入住 · ${escapeHtml(stay.退房日期顯示 || '')} 退房</span>${stay.mapLocationNote ? `<span>${escapeHtml(stay.mapLocationNote)}</span>` : ''}<a href="#stays">查看住宿安排 →</a>${stay['Google Map位置'] ? `<a href="${escapeHtml(stay['Google Map位置'])}" target="_blank" rel="noreferrer">依訂單地址導航</a>` : ''}</div>`);
     bounds.push(coords);
   });
   L.polyline(route, {color:'#287d72', weight:2, opacity:.45, dashArray:'5 7'}).addTo(routeMapInstance);
