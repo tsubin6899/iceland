@@ -1,11 +1,11 @@
-const CACHE_NAME = 'iceland-trip-v60';
+const CACHE_NAME = 'iceland-trip-v61';
 const APP_SHELL = [
   './',
   './index.html',
   './assets/styles.css',
   './assets/app.js',
-  './assets/app.js?v=60',
-  './assets/styles.css?v=60',
+  './assets/app.js?v=61',
+  './assets/styles.css?v=61',
   './assets/images/kef-airport-flow.svg',
   './assets/icons/iceland-flag-192.png',
   './assets/icons/iceland-flag-512.png',
