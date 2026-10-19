@@ -39,5 +39,21 @@
 .travel-links a{padding:10px 12px;min-height:44px;border:1px solid currentColor;border-radius:7px;text-decoration:none;color:var(--card-ink);font-weight:700;font-size:.84rem}.travel-links a:hover{background:var(--tag-bg)}.travel-guide a{text-underline-offset:3px}
 .travel-warning{font-weight:700;color:#8b3d28}
 .travel-guide [hidden]{display:none!important}
+.dining-map-picker{margin:28px 0;padding:24px;background:#edf3f5;border-radius:16px}
+.dining-map-heading h3{margin:0;font-size:1.35rem}.dining-map-heading p{margin:6px 0;color:#425d69}
+.dining-region-map{display:block;width:100%;max-width:740px;margin:0 auto;height:auto}
+.dining-map-region{stroke:#fffdf8;stroke-width:2;cursor:pointer;transition:filter .15s}
+.dining-map-region:hover,.dining-map-region:focus-visible{filter:brightness(.9);outline:none;stroke:#183e4a;stroke-width:4}
+.dining-map-region.active{stroke:#183e4a;stroke-width:5;filter:saturate(1.4)}
+.dining-map-region[aria-disabled="true"]{cursor:default;filter:none;stroke:#fffdf8;stroke-width:2}
+.dining-map-coast{fill:none;stroke:#6a818b;stroke-width:1.5;pointer-events:none}
+.dining-map-label{pointer-events:none;fill:#193d4c}.dining-map-label text{font-family:inherit;font-size:16px;font-weight:700;paint-order:stroke;stroke:#fffdf8;stroke-width:4;stroke-linejoin:round}
+.region-choices{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.region-choice{display:flex;align-items:center;gap:8px;min-height:46px;border:1px solid #a1b3bb;border-radius:8px;padding:10px 14px;background:#fffdf8;color:#244550;font:inherit;font-size:.88rem;cursor:pointer}
+.region-choice span{width:13px;height:13px;flex-shrink:0;border-radius:3px;background:var(--region-color);border:1px solid #697e87}
+.region-choice.active{border-color:#244550;background:#244550;color:#fffdf8}.region-choice:hover:not(.active){background:#e0e9ed}
+.dining-map-note{font-size:.76rem;color:#52636a;margin-bottom:0}#dining-region-status{font-weight:700}
+@media(max-width:600px){.dining-map-picker{padding:16px}.region-choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}.region-choice{padding:9px;font-size:.8rem}.dining-map-label text{font-size:21px}.dining-map-label circle{r:5px}}
+@media(prefers-reduced-motion:reduce){.dining-map-region{transition:none}}
 @media(max-width:800px){#packing-items,.dining-stop{grid-template-columns:1fr}.packing-row,.dining-entry{padding:20px}}
 @media(max-width:600px){.travel-controls{gap:10px}.travel-controls label{flex-basis:100%}.travel-guide>h2{font-size:1.7rem}.travel-intro{padding:18px}.packing-row p{margin-left:0}.packing-row .travel-details{margin-left:0}.dining-stop{gap:14px}.travel-links{gap:10px}}
